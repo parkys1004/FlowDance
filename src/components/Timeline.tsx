@@ -405,91 +405,71 @@ export function Timeline() {
         />
       )}
 
-      {/* Controls Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 sm:mb-4">
-        <div className="flex items-center justify-between sm:justify-start gap-4 text-xs font-mono">
-          <div>
+      {/* Controls Header — 3열 그리드: 좌(시간/업로드) | 중앙(이동/재생) | 우(추가/복제) */}
+      <div className="grid grid-cols-3 items-center gap-2 mb-2 sm:mb-4">
+
+        {/* 좌: 시간 + 오디오명 + 업로드 */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="text-xs font-mono shrink-0">
             <span className="text-blue-500">{formatTime(currentTime)}</span>
-            <span className="text-neutral-600 ml-2">/ {formatTime(duration || 0)}</span>
+            <span className="text-neutral-600 ml-1">/ {formatTime(duration || 0)}</span>
           </div>
-          {/* Audio name on mobile can go here or show/hide */}
           {project.audioName && (
-            <div className="md:hidden flex items-center gap-1.5 px-2 py-1 bg-blue-600/10 text-blue-400 rounded text-[10px] border border-blue-500/20 max-w-[100px] truncate shrink-0">
+            <div className="hidden md:flex items-center gap-1 px-2 py-0.5 bg-blue-600/10 text-blue-400 rounded text-[10px] border border-blue-500/20 max-w-[100px] truncate shrink-0">
               <Music className="w-3 h-3 shrink-0" />
               <span className="truncate">{project.audioName}</span>
             </div>
           )}
-        </div>
-        
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar scrollbar-hide w-full sm:w-auto">
-          {project.audioName && (
-            <div className="hidden md:flex items-center gap-1.5 px-2 py-1 mr-2 bg-blue-600/10 text-blue-400 rounded text-[10px] border border-blue-500/20 max-w-[120px] truncate shrink-0">
-              <Music className="w-3 h-3 shrink-0" />
-              <span className="truncate">{project.audioName}</span>
-            </div>
-          )}
-          
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[10px] text-neutral-400 border border-white/5 hover:bg-white/10 hover:text-white transition"
-            title="Upload Music"
+            className="p-1.5 rounded text-[10px] text-neutral-400 border border-white/5 hover:bg-white/10 hover:text-white transition shrink-0"
+            title="음악 업로드"
           >
             <Upload className="w-3.5 h-3.5" />
           </button>
-          
-          <div className="w-px h-4 bg-white/10 mx-1" />
+        </div>
 
-          {/* 맨앞/이전마크/재생/다음마크/맨뒤 */}
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={goToStart}
-              title="맨 앞으로"
-              className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <ChevronsLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={goToPrevMark}
-              title="이전 마크"
-              disabled={!project.frames.length}
-              className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
+        {/* 중앙: 맨앞 / 이전마크 / 재생 / 다음마크 / 맨뒤 */}
+        <div className="flex items-center justify-center gap-0.5">
+          <button onClick={goToStart} title="맨 앞으로"
+            className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors">
+            <ChevronsLeft className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={goToPrevMark} title="이전 마크"
+            disabled={!project.frames.length}
+            className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30">
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={togglePlay}
+            className={cn(
+              "p-1.5 rounded-full flex items-center justify-center transition-colors border mx-1",
+              isPlaying
+                ? "bg-blue-600/20 text-blue-400 border-blue-600/30"
+                : "bg-white/5 text-neutral-400 border-white/5 hover:text-white"
+            )}
+          >
+            {isPlaying
+              ? <Pause className="w-3.5 h-3.5 fill-current" />
+              : <Play  className="w-3.5 h-3.5 fill-current ml-0.5" />}
+          </button>
+          <button onClick={goToNextMark} title="다음 마크"
+            disabled={!project.frames.length}
+            className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30">
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={goToEnd} title="맨 뒤로"
+            className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors">
+            <ChevronsRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
-            <button
-              onClick={togglePlay}
-              className={cn(
-                "p-1.5 rounded-full flex items-center justify-center transition-colors border mx-0.5",
-                isPlaying
-                  ? "bg-blue-600/20 text-blue-400 border-blue-600/30"
-                  : "bg-white/5 text-neutral-400 border-white/5 hover:text-white"
-              )}
-            >
-              {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
-            </button>
-
-            <button
-              onClick={goToNextMark}
-              title="다음 마크"
-              disabled={!project.frames.length}
-              className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={goToEnd}
-              title="맨 뒤로"
-              className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <ChevronsRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          
+        {/* 우: 추가 / 복제 */}
+        <div className="flex items-center justify-end gap-2">
           <button
             onClick={addFrame}
-            className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded text-[10px] text-neutral-400 border border-white/5 hover:bg-white/10 transition ml-2"
-            title="Add Empty Frame"
+            className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded text-[10px] text-neutral-400 border border-white/5 hover:bg-white/10 transition"
+            title="마크 추가"
           >
             <Plus className="w-3 h-3" />
             <span className="hidden sm:inline">추가</span>
@@ -497,12 +477,13 @@ export function Timeline() {
           <button
             onClick={duplicateFrame}
             className="flex items-center gap-1.5 px-3 py-1 bg-blue-600/20 text-blue-400 rounded text-[10px] font-bold border border-blue-600/30 hover:bg-blue-600/30 transition"
-            title="Duplicate Current Frame"
+            title="마크 복제"
           >
             <Copy className="w-3 h-3" />
             <span className="hidden sm:inline">복제</span>
           </button>
         </div>
+
       </div>
 
       {/* Frame Track (Waveform & Overlay) */}
