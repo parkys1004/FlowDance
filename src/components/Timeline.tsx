@@ -6,11 +6,11 @@ import { Play, Pause, Copy, Plus, Trash2, Upload, Music } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export function Timeline() {
-  const { 
-    project, 
-    currentFrameIndex, 
-    setCurrentFrame, 
-    addFrame, 
+  const {
+    project,
+    currentFrameIndex,
+    setCurrentFrame,
+    addFrame,
     duplicateFrame,
     removeFrame,
     isPlaying,
@@ -23,6 +23,15 @@ export function Timeline() {
     setPlay,
     setFrameTransition
   } = useStore();
+
+  // 퇴장 마커 중 최대 seconds → 음악 후 추가 재생 시간
+  const exitOffset = Math.max(
+    0,
+    ...((project?.stageMarkers || [])
+      .filter(m => m.type === 'exit')
+      .map(m => m.seconds ?? 10))
+  );
+  const effectiveDuration = (duration || 30) + exitOffset;
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,20 +102,29 @@ export function Timeline() {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, trackWidth, height);
 
-    const actualDuration = duration || 30; // 30s default if no audio format
-    const progress = Math.min(currentTime / actualDuration, 1);
-    
-    // Draw Waveform or empty dashed line
+    const audioDur = duration || 30;
+    const exitOff = Math.max(
+      0,
+      ...((project?.stageMarkers || [])
+        .filter(m => m.type === 'exit')
+        .map(m => m.seconds ?? 10))
+    );
+    const totalDur = audioDur + exitOff;
+    const audioPortion = audioDur / totalDur; // 웨이브폼이 차지하는 비율
+    const progress = Math.min(currentTime / totalDur, 1);
+
+    // Draw Waveform or empty dashed line (audio portion only)
     if (peaks.length === 0) {
       ctx.strokeStyle = '#333';
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.moveTo(0, height / 2);
-      ctx.lineTo(trackWidth, height / 2);
+      ctx.lineTo(trackWidth * audioPortion, height / 2);
       ctx.stroke();
       ctx.setLineDash([]);
     } else {
-      const barWidth = trackWidth / peaks.length;
+      const waveWidth = trackWidth * audioPortion;
+      const barWidth = waveWidth / peaks.length;
       const gap = barWidth * 0.2;
       const drawWidth = Math.max(1, barWidth - gap);
 
@@ -114,16 +132,53 @@ export function Timeline() {
         const barHeight = Math.max(2, peak * height);
         const x = i * barWidth;
         const y = (height - barHeight) / 2;
-        
-        ctx.fillStyle = (x / trackWidth) <= progress ? '#3B82F6' : '#3F3F46'; // blue-500 vs neutral-700
-        
+        ctx.fillStyle = (x / trackWidth) <= progress ? '#3B82F6' : '#3F3F46';
         ctx.beginPath();
-        ctx.roundRect(x + gap/2, y, drawWidth, barHeight, 2);
+        ctx.roundRect(x + gap / 2, y, drawWidth, barHeight, 2);
         ctx.fill();
       });
     }
 
-  }, [peaks, currentTime, duration, trackWidth]);
+    // Draw exit zone (orange) after audio
+    if (exitOff > 0) {
+      const exitStart = trackWidth * audioPortion;
+      ctx.fillStyle = 'rgba(249,115,22,0.12)';
+      ctx.fillRect(exitStart, 0, trackWidth - exitStart, height);
+      // Divider line
+      ctx.strokeStyle = 'rgba(249,115,22,0.5)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(exitStart, 0);
+      ctx.lineTo(exitStart, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // "퇴장" label
+      ctx.fillStyle = 'rgba(249,115,22,0.7)';
+      ctx.font = `bold 9px sans-serif`;
+      ctx.fillText(`+${exitOff}s`, exitStart + 4, height / 2 + 3);
+    }
+
+    // Draw entry zones (green) for each entry marker
+    const entryMarkers = (project?.stageMarkers || []).filter(
+      m => m.type === 'entry' && m.timestamp !== undefined
+    );
+    entryMarkers.forEach(marker => {
+      const ts = marker.timestamp!;
+      const sec = marker.seconds ?? 10;
+      const zoneStart = Math.max(0, (ts - sec) / totalDur) * trackWidth;
+      const zoneEnd = (ts / totalDur) * trackWidth;
+      ctx.fillStyle = 'rgba(16,185,129,0.15)';
+      ctx.fillRect(zoneStart, 0, zoneEnd - zoneStart, height);
+      ctx.strokeStyle = 'rgba(16,185,129,0.5)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(zoneStart, 0);
+      ctx.lineTo(zoneStart, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+  }, [peaks, currentTime, duration, trackWidth, project?.stageMarkers]);
 
   useEffect(() => {
     let animationFrameId: number;
@@ -132,17 +187,17 @@ export function Timeline() {
     const loop = (now: DOMHighResTimeStamp) => {
       const dt = (now - lastTime) / 1000;
       lastTime = now;
-      
+
       if (isPlaying) {
-        if (audioRef.current) {
+        // 오디오가 끝나지 않았으면 오디오 시간 동기화, 끝났으면 타이머 모드
+        if (audioRef.current && !audioRef.current.ended) {
           setCurrentTime(audioRef.current.currentTime);
         } else {
           setCurrentTime((prev) => {
             const next = prev + dt;
-            const maxDuration = duration || 30;
-            if (next >= maxDuration) {
+            if (next >= effectiveDuration) {
               setPlay(false);
-              return maxDuration;
+              return effectiveDuration;
             }
             return next;
           });
@@ -154,7 +209,7 @@ export function Timeline() {
     if (isPlaying) {
       lastTime = performance.now();
       animationFrameId = requestAnimationFrame(loop);
-      
+
       if (audioRef.current) {
         audioRef.current.play().catch(e => {
           console.error("Audio playback error:", e);
@@ -170,7 +225,7 @@ export function Timeline() {
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [isPlaying, duration]);
+  }, [isPlaying, effectiveDuration]);
 
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,12 +243,12 @@ export function Timeline() {
     if (!trackRef.current) return;
     const rect = trackRef.current.getBoundingClientRect();
     const x = clientX - rect.left;
-    const actualDuration = duration || 30;
-    const clickTime = Math.max(0, Math.min(actualDuration, (x / rect.width) * actualDuration));
+    const clickTime = Math.max(0, Math.min(effectiveDuration, (x / rect.width) * effectiveDuration));
 
     setCurrentTime(clickTime);
     if (audioRef.current) {
-      audioRef.current.currentTime = clickTime;
+      // 오디오 범위 내에서만 seek
+      audioRef.current.currentTime = Math.min(clickTime, duration || 30);
     }
   };
 
@@ -250,7 +305,7 @@ export function Timeline() {
               setDuration(audioRef.current.duration);
             }
           }}
-          onEnded={() => setPlay(false)}
+          onEnded={() => { if (exitOffset <= 0) setPlay(false); }}
         />
       )}
 
@@ -338,8 +393,7 @@ export function Timeline() {
         {/* Frames Overlay */}
         {project.frames.map((frame, index) => {
           const isActive = currentFrameIndex === index;
-          const actualDuration = duration || 30; // 30s default
-          const leftPercent = (frame.timestamp / actualDuration) * 100;
+          const leftPercent = (frame.timestamp / effectiveDuration) * 100;
 
           return (
             <div 
@@ -375,7 +429,7 @@ export function Timeline() {
         <div 
           className="absolute top-0 bottom-0 z-40 -translate-x-1/2 flex flex-col items-center pointer-events-none"
           style={{ 
-            left: `calc(${Math.min(100, (currentTime / (duration || 30)) * 100)}% + 0.5rem)`,
+            left: `calc(${Math.min(100, (currentTime / effectiveDuration) * 100)}% + 0.5rem)`,
             transition: isDraggingPlayhead ? 'none' : 'left 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
           }}
         >
@@ -394,7 +448,12 @@ export function Timeline() {
       
       <div className="flex justify-between text-[8px] text-neutral-600 font-mono mt-1 uppercase tracking-widest px-2">
         <span>Start</span>
-        <span>{duration ? formatTime(duration) : '30:00.00'.substring(0,5)}</span>
+        <div className="flex items-center gap-1">
+          {exitOffset > 0 && (
+            <span className="text-orange-500/60">+{exitOffset}s</span>
+          )}
+          <span>{duration ? formatTime(effectiveDuration) : '30:00.00'.substring(0, 5)}</span>
+        </div>
       </div>
 
       {/* Frame Edit Modal */}

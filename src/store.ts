@@ -38,6 +38,7 @@ interface AppState {
   removeStageMarker: (id: string) => void;
   updateStageMarkerPosition: (id: string, x: number, y: number) => void;
   updateStageMarkerLabel: (id: string, label: string) => void;
+  updateStageMarkerSeconds: (id: string, seconds: number) => void;
 }
 
 const DEFAULT_STAGE: StageConfig = {
@@ -307,6 +308,8 @@ export const useStore = create<AppState>((set, get) => ({
         x: 50,
         y: type === 'entry' ? 82 : 18,
         label,
+        seconds: 10,
+        timestamp: type === 'entry' ? state.currentTime : undefined,
       };
       return {
         project: {
@@ -351,6 +354,20 @@ export const useStore = create<AppState>((set, get) => ({
           ...state.project,
           stageMarkers: (state.project.stageMarkers || []).map(m =>
             m.id === id ? { ...m, label } : m
+          ),
+        },
+      };
+    });
+  },
+
+  updateStageMarkerSeconds: (id, seconds) => {
+    set((state) => {
+      if (!state.project) return state;
+      return {
+        project: {
+          ...state.project,
+          stageMarkers: (state.project.stageMarkers || []).map(m =>
+            m.id === id ? { ...m, seconds: Math.max(5, Math.min(20, seconds)) } : m
           ),
         },
       };

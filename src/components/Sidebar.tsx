@@ -10,7 +10,7 @@ const COLORS = [
 ];
 
 export function Sidebar() {
-  const { project, addMember, removeMember, addStageMarker, removeStageMarker } = useStore();
+  const { project, addMember, removeMember, addStageMarker, removeStageMarker, updateStageMarkerSeconds } = useStore();
   const [newMemberName, setNewMemberName] = useState('');
 
   if (!project) return null;
@@ -104,30 +104,59 @@ export function Sidebar() {
         </div>
 
         {(project.stageMarkers || []).length > 0 && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 space-y-2">
             {(project.stageMarkers || []).map((marker) => {
               const isEntry = marker.type === 'entry';
               const sameType = (project.stageMarkers || []).filter(m => m.type === marker.type);
               const typeIndex = sameType.findIndex(m => m.id === marker.id) + 1;
+              const seconds = marker.seconds ?? 10;
               return (
-                <div key={marker.id} className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-white/5 group transition-colors">
-                  <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "w-5 h-5 rounded flex items-center justify-center",
-                      isEntry ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"
-                    )}>
-                      {isEntry ? <LogIn className="w-3 h-3" /> : <LogOut className="w-3 h-3" />}
+                <div key={marker.id} className={cn(
+                  "rounded-lg p-2 border",
+                  isEntry ? "bg-emerald-500/5 border-emerald-500/20" : "bg-orange-500/5 border-orange-500/20"
+                )}>
+                  {/* Header row */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className={cn(
+                        "w-4 h-4 rounded flex items-center justify-center",
+                        isEntry ? "text-emerald-400" : "text-orange-400"
+                      )}>
+                        {isEntry ? <LogIn className="w-3 h-3" /> : <LogOut className="w-3 h-3" />}
+                      </div>
+                      <span className={cn("text-[11px] font-medium", isEntry ? "text-emerald-400" : "text-orange-400")}>
+                        {marker.label || (isEntry ? '입장' : '퇴장')}{typeIndex > 1 ? ` ${typeIndex}` : ''}
+                      </span>
+                      <span className="text-[10px] text-neutral-600">
+                        {isEntry ? `(${seconds}초 전)` : `(${seconds}초 후)`}
+                      </span>
                     </div>
-                    <span className="text-xs text-neutral-400">
-                      {marker.label || (isEntry ? '입장' : '퇴장')} {typeIndex > 1 ? typeIndex : ''}
-                    </span>
+                    <button
+                      onClick={() => removeStageMarker(marker.id)}
+                      className="text-neutral-600 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeStageMarker(marker.id)}
-                    className="text-neutral-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Seconds selector */}
+                  <div className="flex gap-1">
+                    {[5, 10, 15, 20].map(s => (
+                      <button
+                        key={s}
+                        onClick={() => updateStageMarkerSeconds(marker.id, s)}
+                        className={cn(
+                          "flex-1 py-0.5 rounded text-[10px] font-bold transition-colors",
+                          seconds === s
+                            ? isEntry
+                              ? "bg-emerald-500 text-white"
+                              : "bg-orange-500 text-white"
+                            : "bg-white/5 text-neutral-500 hover:text-neutral-300 hover:bg-white/10"
+                        )}
+                      >
+                        {s}s
+                      </button>
+                    ))}
+                  </div>
                 </div>
               );
             })}

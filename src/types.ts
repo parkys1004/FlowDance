@@ -23,6 +23,8 @@ export interface StageMarker {
   x: number; // 0-100 percent
   y: number; // 0-100 percent
   label?: string;
+  seconds: number;     // entry: 인디케이터 앞쪽 버퍼(5-20s) / exit: 음악 후 연장(5-20s)
+  timestamp?: number;  // entry 마커가 연결된 타임라인 시점
 }
 
 export interface Project {
