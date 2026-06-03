@@ -35,6 +35,7 @@ interface AppState {
   setDuration: (duration: number) => void;
 
   clearAllMembers: () => void;
+  applyFormation: (positions: Record<string, Point>) => void;
 
   addStageMarker: (type: StageMarkerType, label?: string) => void;
   removeStageMarker: (id: string) => void;
@@ -323,6 +324,20 @@ export const useStore = create<AppState>((set, get) => ({
 
   setDuration: (duration) => {
     set({ duration });
+  },
+
+  applyFormation: (positions) => {
+    set((state) => {
+      if (!state.project) return state;
+      const frames = [...state.project.frames];
+      const frame = frames[state.currentFrameIndex];
+      if (!frame) return state;
+      frames[state.currentFrameIndex] = {
+        ...frame,
+        positions: { ...frame.positions, ...positions },
+      };
+      return { project: { ...state.project, frames } };
+    });
   },
 
   clearAllMembers: () => {
