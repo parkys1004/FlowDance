@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { useStore } from '../store';
-import { Play, Pause, Copy, Plus, Trash2, Upload, Music } from 'lucide-react';
+import { Play, Pause, Copy, Plus, Trash2, Upload, Music, LogIn, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export function Timeline() {
@@ -21,7 +21,8 @@ export function Timeline() {
     duration,
     setDuration,
     setPlay,
-    setFrameTransition
+    setFrameTransition,
+    updateMemberPosition,
   } = useStore();
 
   const markers = project?.stageMarkers || [];
@@ -287,6 +288,55 @@ export function Timeline() {
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
+  // 모든 멤버를 입장/퇴장 마커 위치로 이동
+  const moveAllMembersTo = (type: 'entry' | 'exit') => {
+    if (!project || editingFrameIndex === null) return;
+
+    const typeMarkers = (project.stageMarkers || []).filter(m => m.type === type);
+    const members = project.members;
+    if (members.length === 0) return;
+
+    // currentFrameIndex를 즉시 동기화 (updateMemberPosition이 이를 참조)
+    useStore.getState().setCurrentFrame(editingFrameIndex);
+
+    // 각 멤버의 목표 위치 계산
+    const targets: Array<{ x: number; y: number }> = [];
+
+    if (typeMarkers.length === 0) {
+      // 마커 없음 → 기본 포메이션 (입장=하단, 퇴장=상단)
+      const defaultY = type === 'entry' ? 85 : 15;
+      members.forEach((_, i) => {
+        targets.push({ x: (i + 1) * 100 / (members.length + 1), y: defaultY });
+      });
+    } else if (typeMarkers.length >= members.length) {
+      // 마커 수 ≥ 멤버 수 → 1:1 배정
+      members.forEach((_, i) => {
+        targets.push({ x: typeMarkers[i].x, y: typeMarkers[i].y });
+      });
+    } else {
+      // 마커 수 < 멤버 수 → 마커 주변에 분산 배치
+      const step = 5; // 멤버 간 간격(%)
+      members.forEach((_, i) => {
+        const mIdx = Math.round(i * (typeMarkers.length - 1) / Math.max(members.length - 1, 1));
+        const base = typeMarkers[mIdx];
+        const groupSize = Math.ceil(members.length / typeMarkers.length);
+        const offset = (i % groupSize - Math.floor(groupSize / 2)) * step;
+        targets.push({
+          x: Math.max(3, Math.min(97, base.x + offset)),
+          y: base.y,
+        });
+      });
+    }
+
+    // Zustand getState()로 최신 state에서 직접 업데이트
+    members.forEach((member, i) => {
+      const state = useStore.getState();
+      const curPos = state.project!.frames[editingFrameIndex]?.positions[member.id]
+        || { x: 50, y: 50, rotation: 0 };
+      state.updateMemberPosition(member.id, { ...curPos, x: targets[i].x, y: targets[i].y });
+    });
+  };
+
   const formatTime = (timeInSeconds: number) => {
     const m = Math.floor(timeInSeconds / 60);
     const s = Math.floor(timeInSeconds % 60);
@@ -521,8 +571,29 @@ export function Timeline() {
               </div>
             </div>
 
+            {/* 무대 이동 버튼 */}
+            <div className="space-y-2 pt-2 border-t border-white/10">
+              <label className="text-xs text-neutral-400">무대 이동</label>
+              <button
+                onClick={() => moveAllMembersTo('entry')}
+                onPointerDown={e => e.stopPropagation()}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs font-medium transition-colors"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                모든 멤버 입장위치로 이동
+              </button>
+              <button
+                onClick={() => moveAllMembersTo('exit')}
+                onPointerDown={e => e.stopPropagation()}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded border border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 text-xs font-medium transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                모든 멤버 퇴장위치로 이동
+              </button>
+            </div>
+
             <div className="pt-2 border-t border-white/10 flex justify-between mt-2">
-              <button 
+              <button
                 onClick={() => {
                   removeFrame(editingFrameIndex);
                   setEditingFrameIndex(null);
@@ -534,8 +605,8 @@ export function Timeline() {
                 <Trash2 className="w-4 h-4" />
                 Delete
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => setEditingFrameIndex(null)}
                 onPointerDown={e => e.stopPropagation()}
                 className="px-4 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors font-medium"
