@@ -416,13 +416,14 @@ export function Timeline() {
                 isActive ? "z-30" : "z-10 hover:z-30"
               )}
               style={{ left: `calc(${Math.min(100, Math.max(0, leftPercent))}% + 0.5rem)` }}
-              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 setCurrentFrame(index);
-                setCurrentTime(frame.timestamp);
+                // frame.timestamp는 오디오 기준 → 절대 시간으로 변환
+                const absTime = entryOffset + frame.timestamp;
+                setCurrentTime(absTime);
                 if (audioRef.current) {
-                  audioRef.current.currentTime = frame.timestamp;
+                  audioRef.current.currentTime = Math.max(0, frame.timestamp);
                 }
                 setEditingFrameIndex(index);
               }}
