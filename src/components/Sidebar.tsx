@@ -140,7 +140,7 @@ export function Sidebar() {
                   </div>
                   {/* Seconds selector */}
                   <div className="flex gap-1">
-                    {[5, 10, 15, 20].map(s => (
+                    {[0, 5, 10, 15, 20].map(s => (
                       <button
                         key={s}
                         onClick={() => updateStageMarkerSeconds(marker.id, s)}

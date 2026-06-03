@@ -391,7 +391,7 @@ export const useStore = create<AppState>((set, get) => ({
         project: {
           ...state.project,
           stageMarkers: (state.project.stageMarkers || []).map(m =>
-            m.id === id ? { ...m, seconds: Math.max(5, Math.min(20, seconds)) } : m
+            m.id === id ? { ...m, seconds: Math.max(0, Math.min(20, seconds)) } : m
           ),
         },
       };
