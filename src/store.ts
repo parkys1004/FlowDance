@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Project, Member, Frame, StageConfig, Point } from './types';
+import { Project, Member, Frame, StageConfig, Point, StageMarker, StageMarkerType } from './types';
 import { generateId } from './lib/utils';
 
 interface AppState {
@@ -33,6 +33,11 @@ interface AppState {
   setAudio: (url: string, name: string) => void;
   setCurrentTime: (time: number | ((prev: number) => number)) => void;
   setDuration: (duration: number) => void;
+
+  addStageMarker: (type: StageMarkerType, label?: string) => void;
+  removeStageMarker: (id: string) => void;
+  updateStageMarkerPosition: (id: string, x: number, y: number) => void;
+  updateStageMarkerLabel: (id: string, label: string) => void;
 }
 
 const DEFAULT_STAGE: StageConfig = {
@@ -291,5 +296,64 @@ export const useStore = create<AppState>((set, get) => ({
 
   setDuration: (duration) => {
     set({ duration });
-  }
+  },
+
+  addStageMarker: (type, label) => {
+    set((state) => {
+      if (!state.project) return state;
+      const newMarker: StageMarker = {
+        id: generateId(),
+        type,
+        x: 50,
+        y: type === 'entry' ? 82 : 18,
+        label,
+      };
+      return {
+        project: {
+          ...state.project,
+          stageMarkers: [...(state.project.stageMarkers || []), newMarker],
+        },
+      };
+    });
+  },
+
+  removeStageMarker: (id) => {
+    set((state) => {
+      if (!state.project) return state;
+      return {
+        project: {
+          ...state.project,
+          stageMarkers: (state.project.stageMarkers || []).filter(m => m.id !== id),
+        },
+      };
+    });
+  },
+
+  updateStageMarkerPosition: (id, x, y) => {
+    set((state) => {
+      if (!state.project) return state;
+      return {
+        project: {
+          ...state.project,
+          stageMarkers: (state.project.stageMarkers || []).map(m =>
+            m.id === id ? { ...m, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : m
+          ),
+        },
+      };
+    });
+  },
+
+  updateStageMarkerLabel: (id, label) => {
+    set((state) => {
+      if (!state.project) return state;
+      return {
+        project: {
+          ...state.project,
+          stageMarkers: (state.project.stageMarkers || []).map(m =>
+            m.id === id ? { ...m, label } : m
+          ),
+        },
+      };
+    });
+  },
 }));

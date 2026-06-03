@@ -181,6 +181,8 @@ export function Timeline() {
   };
 
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
+  const pointerDownRef = useRef<{ x: number; active: boolean } | null>(null);
+  const DRAG_THRESHOLD = 4;
 
   const updatePlayheadPosition = (clientX: number) => {
     if (!trackRef.current) return;
@@ -188,7 +190,7 @@ export function Timeline() {
     const x = clientX - rect.left;
     const actualDuration = duration || 30;
     const clickTime = Math.max(0, Math.min(actualDuration, (x / rect.width) * actualDuration));
-    
+
     setCurrentTime(clickTime);
     if (audioRef.current) {
       audioRef.current.currentTime = clickTime;
@@ -196,20 +198,26 @@ export function Timeline() {
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return; // Only left click
+    if (e.button !== 0) return;
+    pointerDownRef.current = { x: e.clientX, active: true };
     if (isPlaying) setPlay(false);
-    setIsDraggingPlayhead(true);
-    updatePlayheadPosition(e.clientX);
+    updatePlayheadPosition(e.clientX); // transition 있는 상태로 클릭 위치로 이동
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isDraggingPlayhead) {
+    if (!pointerDownRef.current?.active) return;
+    const dx = Math.abs(e.clientX - pointerDownRef.current.x);
+    if (!isDraggingPlayhead && dx > DRAG_THRESHOLD) {
+      setIsDraggingPlayhead(true); // 드래그 감지 시 transition 제거
+    }
+    if (isDraggingPlayhead || dx > DRAG_THRESHOLD) {
       updatePlayheadPosition(e.clientX);
     }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    pointerDownRef.current = null;
     setIsDraggingPlayhead(false);
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   };
@@ -368,7 +376,7 @@ export function Timeline() {
           className="absolute top-0 bottom-0 z-40 -translate-x-1/2 flex flex-col items-center pointer-events-none"
           style={{ 
             left: `calc(${Math.min(100, (currentTime / (duration || 30)) * 100)}% + 0.5rem)`,
-            transition: isDraggingPlayhead ? 'none' : 'left 0.1s linear'
+            transition: isDraggingPlayhead ? 'none' : 'left 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
           }}
         >
           <div className={cn(

@@ -4,13 +4,16 @@ import { motion, PanInfo } from 'motion/react';
 import { useStore } from '../store';
 import { cn } from '../lib/utils';
 import { Point } from '../types';
+import { LogIn, LogOut } from 'lucide-react';
 
 export function Stage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { project, currentFrameIndex, stageConfig, currentTime, isPlaying } = useStore();
+  const { project, currentFrameIndex, stageConfig, currentTime, isPlaying, removeStageMarker, updateStageMarkerPosition, updateStageMarkerLabel } = useStore();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [draggingMarkerId, setDraggingMarkerId] = useState<string | null>(null);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
 
   // Handle stage resizing
   useEffect(() => {
@@ -32,6 +35,23 @@ export function Stage() {
 
   const currentFrame = project.frames[currentFrameIndex];
   if (!currentFrame) return null;
+
+  const handleMarkerPan = (markerId: string, info: PanInfo) => {
+    if (!containerRef.current || dimensions.width === 0) return;
+    const state = useStore.getState();
+    if (!state.project) return;
+
+    const marker = state.project.stageMarkers?.find(m => m.id === markerId);
+    if (!marker) return;
+
+    const percentDx = (info.delta.x / dimensions.width) * 100;
+    const percentDy = (info.delta.y / dimensions.height) * 100;
+
+    let newX = marker.x + (state.stageConfig.mirrorMode ? -percentDx : percentDx);
+    let newY = marker.y + percentDy;
+
+    state.updateStageMarkerPosition(markerId, newX, newY);
+  };
 
   const handlePan = (memberId: string, info: PanInfo) => {
     if (!containerRef.current || dimensions.width === 0) return;
@@ -193,6 +213,58 @@ export function Stage() {
         );
       })}
 
+      {/* Stage Markers (Entry / Exit) */}
+      {(project.stageMarkers || []).map((marker) => {
+        let renderX = marker.x;
+        if (stageConfig.mirrorMode) renderX = 100 - renderX;
+
+        const isEntry = marker.type === 'entry';
+
+        return (
+          <motion.div
+            key={marker.id}
+            style={{ position: 'absolute' }}
+            animate={{
+              left: `calc(${renderX}% - 1.75rem)`,
+              top: `calc(${marker.y}% - 1.75rem)`,
+            }}
+            transition={{ duration: 0 }}
+            onPanStart={() => setDraggingMarkerId(marker.id)}
+            onPan={(e, info) => handleMarkerPan(marker.id, info)}
+            onPanEnd={() => setDraggingMarkerId(null)}
+            onContextMenu={(e) => { e.preventDefault(); setEditingMarkerId(marker.id); }}
+            className="w-14 h-14 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none group z-20"
+          >
+            {/* Pulsing ring on hover */}
+            <div className={cn(
+              "absolute w-12 h-12 rounded-xl scale-0 group-hover:scale-100 transition-transform duration-200",
+              isEntry ? "bg-emerald-400/15 border border-emerald-400/30" : "bg-orange-400/15 border border-orange-400/30"
+            )} />
+
+            <div className={cn(
+              "relative w-10 h-10 rounded-xl flex flex-col items-center justify-center text-white border-2 select-none transition-transform",
+              isEntry
+                ? "bg-emerald-500/80 border-emerald-400/70 shadow-[0_0_12px_rgba(16,185,129,0.4)]"
+                : "bg-orange-500/80 border-orange-400/70 shadow-[0_0_12px_rgba(249,115,22,0.4)]",
+              draggingMarkerId === marker.id ? "scale-110" : "group-hover:scale-105"
+            )}>
+              {isEntry
+                ? <LogIn className="w-4 h-4 mb-0.5" />
+                : <LogOut className="w-4 h-4 mb-0.5" />
+              }
+              <span className="text-[7px] font-bold leading-none">
+                {marker.label || (isEntry ? '입장' : '퇴장')}
+              </span>
+            </div>
+
+            {/* Tooltip */}
+            <div className="absolute -top-7 whitespace-nowrap bg-black/80 backdrop-blur border border-white/10 text-neutral-300 text-[9px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              우클릭 → 편집/삭제
+            </div>
+          </motion.div>
+        );
+      })}
+
       {/* Trajectories (Path from prev frame) -> Next MVP feature, simple lines */}
       <svg className="absolute inset-0 pointer-events-none w-full h-full z-0 opacity-30">
         {currentFrameIndex > 0 && project.members.map(member => {
@@ -224,6 +296,73 @@ export function Stage() {
             )
         })}
       </svg>
+
+      {/* Stage Marker Edit Modal */}
+      {editingMarkerId && project.stageMarkers?.find(m => m.id === editingMarkerId) && createPortal(
+        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
+          <motion.div
+            drag
+            dragMomentum={false}
+            className="pointer-events-auto bg-[#1A1A1A]/95 border border-white/10 rounded-xl p-5 shadow-2xl w-64 flex flex-col gap-4 backdrop-blur-md"
+            onPointerDown={e => e.stopPropagation()}
+            onPointerMove={e => e.stopPropagation()}
+          >
+            {(() => {
+              const marker = project.stageMarkers!.find(m => m.id === editingMarkerId)!;
+              const isEntry = marker.type === 'entry';
+              return (
+                <>
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3 cursor-move">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "w-6 h-6 rounded-lg flex items-center justify-center",
+                        isEntry ? "bg-emerald-500/30 text-emerald-400" : "bg-orange-500/30 text-orange-400"
+                      )}>
+                        {isEntry ? <LogIn className="w-3.5 h-3.5" /> : <LogOut className="w-3.5 h-3.5" />}
+                      </div>
+                      <h3 className="text-neutral-200 font-medium text-sm">
+                        {isEntry ? '입장' : '퇴장'} 마커 설정
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setEditingMarkerId(null)}
+                      className="text-neutral-500 hover:text-white w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                      onPointerDown={e => e.stopPropagation()}
+                    >✕</button>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-neutral-400">레이블 (선택)</label>
+                    <input
+                      type="text"
+                      value={marker.label || ''}
+                      onChange={(e) => updateStageMarkerLabel(editingMarkerId, e.target.value)}
+                      onPointerDown={e => e.stopPropagation()}
+                      placeholder={isEntry ? '입장' : '퇴장'}
+                      maxLength={6}
+                      className="bg-black/50 border border-white/5 rounded px-2 py-1.5 text-sm text-neutral-200 outline-none focus:border-white/20 transition-colors placeholder:text-neutral-600"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-1 border-t border-white/5">
+                    <button
+                      onClick={() => { removeStageMarker(editingMarkerId); setEditingMarkerId(null); }}
+                      onPointerDown={e => e.stopPropagation()}
+                      className="flex-1 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded text-xs transition-colors"
+                    >삭제</button>
+                    <button
+                      onClick={() => setEditingMarkerId(null)}
+                      onPointerDown={e => e.stopPropagation()}
+                      className="flex-1 py-2 bg-blue-600/80 hover:bg-blue-500 text-white rounded text-xs font-medium transition-colors"
+                    >완료</button>
+                  </div>
+                </>
+              );
+            })()}
+          </motion.div>
+        </div>,
+        document.body
+      )}
 
       {/* Member Edit Modal */}
       {editingMemberId && project.members.find(m => m.id === editingMemberId) && createPortal(

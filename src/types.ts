@@ -15,6 +15,16 @@ export interface Frame {
   transitionType?: TransitionType;
 }
 
+export type StageMarkerType = 'entry' | 'exit';
+
+export interface StageMarker {
+  id: string;
+  type: StageMarkerType;
+  x: number; // 0-100 percent
+  y: number; // 0-100 percent
+  label?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -22,6 +32,7 @@ export interface Project {
   frames: Frame[];
   audioUrl?: string;
   audioName?: string;
+  stageMarkers?: StageMarker[];
 }
 
 export interface StageConfig {
