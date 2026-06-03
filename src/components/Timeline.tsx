@@ -492,7 +492,7 @@ export function Timeline() {
             title="Add Empty Frame"
           >
             <Plus className="w-3 h-3" />
-            <span className="hidden sm:inline">Add</span>
+            <span className="hidden sm:inline">추가</span>
           </button>
           <button
             onClick={duplicateFrame}
@@ -500,7 +500,7 @@ export function Timeline() {
             title="Duplicate Current Frame"
           >
             <Copy className="w-3 h-3" />
-            <span className="hidden sm:inline">Dup</span>
+            <span className="hidden sm:inline">복제</span>
           </button>
         </div>
       </div>
