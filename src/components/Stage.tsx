@@ -55,30 +55,15 @@ export function Stage() {
     state.updateStageMarkerPosition(markerId, newX, newY);
   };
 
-  const handlePanStart = (memberId: string, info: PanInfo) => {
+  const handlePanStart = (memberId: string, event: React.PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
     setDraggingId(memberId);
-    if (!containerRef.current) return;
 
-    const state = useStore.getState();
-    if (!state.project) return;
-
-    const frame = state.project.frames[state.currentFrameIndex];
-    if (!frame) return;
-
-    const pos = frame.positions[memberId] || { x: 50, y: 50, rotation: 0 };
-    const rect = containerRef.current.getBoundingClientRect();
-
-    // 멤버 중심의 뷰포트 좌표 계산
-    let renderX = pos.x;
-    if (state.stageConfig.mirrorMode) renderX = 100 - renderX;
-
-    const centerX = rect.left + (renderX / 100) * rect.width;
-    const centerY = rect.top  + (pos.y   / 100) * rect.height;
-
-    // 커서 - 멤버 중심 = grab offset (드래그 내내 유지할 오프셋)
+    // 멤버 DOM 요소의 실제 렌더링 중심 위치를 직접 읽음 (논리 좌표 역산 오차 없음)
+    const el = (event.currentTarget ?? event.target) as HTMLElement;
+    const r = el.getBoundingClientRect();
     grabOffsetRef.current[memberId] = {
-      x: info.point.x - centerX,
-      y: info.point.y - centerY,
+      x: info.point.x - (r.left + r.width  / 2),
+      y: info.point.y - (r.top  + r.height / 2),
     };
   };
 
@@ -214,7 +199,7 @@ export function Stage() {
         return (
           <motion.div
             key={member.id}
-            onPanStart={(e, info) => handlePanStart(member.id, info)}
+            onPanStart={(e, info) => handlePanStart(member.id, e, info)}
             onPan={(e, info) => handlePan(member.id, info)}
             onPanEnd={() => { setDraggingId(null); delete grabOffsetRef.current[member.id]; }}
             onContextMenu={(e) => {
