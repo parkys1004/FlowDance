@@ -422,10 +422,11 @@ export function Timeline() {
           )}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-1.5 rounded text-[10px] text-neutral-400 border border-white/5 hover:bg-white/10 hover:text-white transition shrink-0"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded text-[10px] text-neutral-400 border border-white/5 hover:bg-white/10 hover:text-white transition shrink-0"
             title="음악 업로드"
           >
             <Upload className="w-3.5 h-3.5" />
+            <span>음악 업로드</span>
           </button>
         </div>
 
