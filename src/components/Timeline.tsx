@@ -519,12 +519,14 @@ export function Timeline() {
               onClick={(e) => {
                 e.stopPropagation();
                 setCurrentFrame(index);
-                // frame.timestamp는 오디오 기준 → 절대 시간으로 변환
                 const absTime = entryOffset + frame.timestamp;
                 setCurrentTime(absTime);
                 if (audioRef.current) {
                   audioRef.current.currentTime = Math.max(0, frame.timestamp);
                 }
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
                 setEditingFrameIndex(index);
               }}
             >
