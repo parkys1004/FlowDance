@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, PanInfo } from 'motion/react';
 import { useStore } from '../store';
 import { cn } from '../lib/utils';
@@ -6,9 +7,10 @@ import { Point } from '../types';
 
 export function Stage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { project, currentFrameIndex, stageConfig } = useStore();
+  const { project, currentFrameIndex, stageConfig, currentTime, isPlaying } = useStore();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
 
   // Handle stage resizing
   useEffect(() => {
@@ -40,7 +42,7 @@ export function Stage() {
     const frame = state.project.frames[state.currentFrameIndex];
     if (!frame) return;
 
-    const pos = frame.positions[memberId] || { x: 50, y: 50 };
+    const pos = frame.positions[memberId] || { x: 50, y: 50, rotation: 0 };
     
     const percentDx = (info.delta.x / dimensions.width) * 100;
     const percentDy = (info.delta.y / dimensions.height) * 100;
@@ -52,7 +54,66 @@ export function Stage() {
     newY = Math.max(0, Math.min(100, newY));
 
     // Call state action via the static getState to prevent stale closures
-    state.updateMemberPosition(memberId, { x: newX, y: newY });
+    state.updateMemberPosition(memberId, { ...pos, x: newX, y: newY });
+  };
+
+  const getRenderPosition = (memberId: string): { x: number, y: number, rotation: number } => {
+    if (!project || project.frames.length === 0) return { x: 50, y: 50, rotation: 0 };
+    
+    // If dragging, snap to current frame's position and ignore interpolation
+    if (draggingId === memberId) {
+       const pos = project.frames[currentFrameIndex]?.positions[memberId] || { x: 50, y: 50, rotation: 0 };
+       return { ...pos, rotation: pos.rotation || 0 };
+    }
+
+    const time = currentTime;
+    const frames = project.frames;
+    
+    let activeIndex = 0;
+    for (let i = frames.length - 1; i >= 0; i--) {
+      if (frames[i].timestamp <= time) {
+        activeIndex = i;
+        break;
+      }
+    }
+
+    // Past last frame
+    if (activeIndex >= frames.length - 1) {
+      const pos = frames[frames.length - 1].positions[memberId] || { x: 50, y: 50, rotation: 0 };
+      return { ...pos, rotation: pos.rotation || 0 };
+    }
+
+    const prevFrame = frames[activeIndex];
+    const nextFrame = frames[activeIndex + 1];
+
+    const prevPos = prevFrame.positions[memberId] || { x: 50, y: 50, rotation: 0 };
+    const nextPos = nextFrame.positions[memberId] || { x: 50, y: 50, rotation: 0 };
+
+    const duration = nextFrame.timestamp - prevFrame.timestamp;
+    if (duration <= 0) return { ...prevPos, rotation: prevPos.rotation || 0 };
+
+    let t = (time - prevFrame.timestamp) / duration;
+    
+    if (nextFrame.transitionType === 'curve') {
+      const easeInOut = (x: number) => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+      t = easeInOut(Math.min(1, Math.max(0, t)));
+    } else if (nextFrame.transitionType === 'jump') {
+      t = t < 0.95 ? 0 : 1;
+    }
+    
+    const x = prevPos.x + (nextPos.x - prevPos.x) * t;
+    const y = prevPos.y + (nextPos.y - prevPos.y) * t;
+    
+    const rotStart = prevPos.rotation || 0;
+    let rotEnd = nextPos.rotation || 0;
+    
+    if (nextFrame.transitionType === 'rotate') {
+       rotEnd = rotStart + 360; 
+    }
+    
+    const rotation = rotStart + (rotEnd - rotStart) * t;
+
+    return { x, y, rotation };
   };
 
   // 16:9 aspect ratio standard for stages
@@ -79,23 +140,11 @@ export function Stage() {
 
       {/* Dancers */}
       {project.members.map((member) => {
-        let pos = currentFrame.positions[member.id] || { x: 50, y: 50 };
+        const logicalPos = getRenderPosition(member.id);
         
-        // Render mirror visually
-        let renderX = pos.x;
+        let renderX = logicalPos.x;
         if (stageConfig.mirrorMode) {
           renderX = 100 - renderX;
-        }
-
-        let transitionConfig: any = { type: "spring", stiffness: 300, damping: 30 };
-        if (currentFrame.transitionType === 'linear') {
-          transitionConfig = { type: 'tween', ease: 'linear', duration: 0.5 };
-        } else if (currentFrame.transitionType === 'curve') {
-          transitionConfig = { type: 'tween', ease: 'easeInOut', duration: 0.6 };
-        } else if (currentFrame.transitionType === 'jump') {
-          transitionConfig = { type: 'tween', duration: 0.1 };
-        } else if (currentFrame.transitionType === 'rotate') {
-          transitionConfig = { type: 'spring', stiffness: 200, damping: 20 };
         }
 
         return (
@@ -106,34 +155,35 @@ export function Stage() {
             onPanEnd={() => setDraggingId(null)}
             onContextMenu={(e) => {
               e.preventDefault();
-              const state = useStore.getState();
-              const currentRot = pos.rotation || 0;
-              state.updateMemberPosition(member.id, { ...pos, rotation: (currentRot + 45) % 360 });
+              setEditingMemberId(member.id);
             }}
             initial={false}
             animate={{
               left: `calc(${renderX}% - 1.5rem)`,
-              top: `calc(${pos.y}% - 1.5rem)`,
+              top: `calc(${logicalPos.y}% - 1.5rem)`,
             }}
-            transition={
-              draggingId === member.id
-                ? { duration: 0 }
-                : transitionConfig
-            }
+            transition={{ duration: 0 }}
             style={{ position: 'absolute' }}
             className="touch-none w-12 h-12 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing group z-10"
           >
             <motion.div 
               className="dancer-dot transition-transform group-hover:scale-110 relative flex items-center justify-center"
               style={{ backgroundColor: member.color }}
-              animate={{ rotate: (currentFrame.transitionType === 'rotate' ? currentFrameIndex * 360 : 0) + (pos.rotation || 0) }}
+              animate={{ rotate: logicalPos.rotation }}
+              transition={{ duration: 0 }}
             >
               {/* White outer triangle */}
               <div className="absolute -bottom-[8px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white z-0" />
               {/* Colored inner triangle */}
               <div className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent z-20" style={{ borderTopColor: member.color }} />
               
-              <span className="relative z-10 leading-none" style={{ rotate: `-${(currentFrame.transitionType === 'rotate' ? currentFrameIndex * 360 : 0) + (pos.rotation || 0)}deg` }}>{member.name.substring(0, 1).toUpperCase()}</span>
+              <motion.span 
+                className="relative z-10 leading-none" 
+                animate={{ rotate: -logicalPos.rotation }}
+                transition={{ duration: 0 }}
+              >
+                {member.name.substring(0, 1).toUpperCase()}
+              </motion.span>
             </motion.div>
             {/* Tooltip Name */}
             <div className="absolute -top-6 whitespace-nowrap bg-black/80 backdrop-blur-md border border-white/10 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
@@ -174,6 +224,107 @@ export function Stage() {
             )
         })}
       </svg>
+
+      {/* Member Edit Modal */}
+      {editingMemberId && project.members.find(m => m.id === editingMemberId) && createPortal(
+        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-start justify-start p-10 md:p-20">
+          <motion.div 
+            drag
+            dragMomentum={false}
+            className="pointer-events-auto bg-[#1A1A1A]/90 border border-white/10 rounded-xl p-5 shadow-2xl w-72 flex flex-col gap-4 backdrop-blur-md" 
+            onPointerDown={e => e.stopPropagation()}
+            onPointerMove={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-3 cursor-move">
+              <h3 className="text-neutral-200 font-medium text-sm">Member Properties</h3>
+              <button 
+                onClick={() => setEditingMemberId(null)}
+                className="text-neutral-500 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10"
+                onPointerDown={e => e.stopPropagation()}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                 <label className="text-xs text-neutral-400">Name</label>
+                 <input 
+                   type="text"
+                   value={project.members.find(m => m.id === editingMemberId)?.name || ''}
+                   onChange={(e) => useStore.getState().updateMember(editingMemberId, { name: e.target.value })}
+                   onPointerDown={(e) => e.stopPropagation()}
+                   className="bg-black/50 border border-white/5 rounded px-2 py-1.5 text-sm text-neutral-200 outline-none focus:border-white/20 transition-colors"
+                 />
+              </div>
+              
+              <div className="flex flex-col gap-1.5">
+                 <label className="text-xs text-neutral-400">Color</label>
+                 <input 
+                   type="color"
+                   value={project.members.find(m => m.id === editingMemberId)?.color || '#ffffff'}
+                   onChange={(e) => useStore.getState().updateMember(editingMemberId, { color: e.target.value })}
+                   onPointerDown={(e) => e.stopPropagation()}
+                   className="w-full h-8 bg-transparent border-0 rounded cursor-pointer"
+                 />
+              </div>
+
+              <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-neutral-400">Rotation</label>
+                  <span className="text-xs text-neutral-300 font-mono">
+                    {(project.frames[currentFrameIndex]?.positions[editingMemberId]?.rotation || 0)}°
+                  </span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="359" 
+                  step="5"
+                  value={(project.frames[currentFrameIndex]?.positions[editingMemberId]?.rotation || 0)}
+                  onChange={(e) => {
+                    const currentPos = project.frames[currentFrameIndex]?.positions[editingMemberId] || { x: 50, y: 50, rotation: 0 };
+                    useStore.getState().updateMemberPosition(editingMemberId, { ...currentPos, rotation: parseInt(e.target.value) });
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="w-full accent-neutral-500 cursor-ew-resize" 
+                />
+                
+                {/* Quick angles */}
+                <div className="flex justify-between mt-1">
+                  {[0, 90, 180, 270].map(angle => (
+                    <button
+                      key={angle}
+                      className="text-[10px] text-neutral-500 hover:text-neutral-300 transition-colors px-1"
+                      onClick={() => {
+                        const currentPos = project.frames[currentFrameIndex]?.positions[editingMemberId] || { x: 50, y: 50, rotation: 0 };
+                        useStore.getState().updateMemberPosition(editingMemberId, { ...currentPos, rotation: angle });
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      {angle}°
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-white/5 mt-1">
+               <button 
+                  onClick={() => {
+                    useStore.getState().removeMember(editingMemberId);
+                    setEditingMemberId(null);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="w-full py-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 rounded text-xs transition-colors"
+                >
+                  Delete Member
+               </button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

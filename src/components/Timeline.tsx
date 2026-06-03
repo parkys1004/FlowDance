@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import { useStore } from '../store';
 import { Play, Pause, Copy, Plus, Trash2, Upload, Music } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -125,25 +126,51 @@ export function Timeline() {
   }, [peaks, currentTime, duration, trackWidth]);
 
   useEffect(() => {
-    if (audioRef.current) {
+    let animationFrameId: number;
+    let lastTime = performance.now();
+
+    const loop = (now: DOMHighResTimeStamp) => {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      
       if (isPlaying) {
+        if (audioRef.current) {
+          setCurrentTime(audioRef.current.currentTime);
+        } else {
+          setCurrentTime((prev) => {
+            const next = prev + dt;
+            const maxDuration = duration || 30;
+            if (next >= maxDuration) {
+              setPlay(false);
+              return maxDuration;
+            }
+            return next;
+          });
+        }
+        animationFrameId = requestAnimationFrame(loop);
+      }
+    };
+
+    if (isPlaying) {
+      lastTime = performance.now();
+      animationFrameId = requestAnimationFrame(loop);
+      
+      if (audioRef.current) {
         audioRef.current.play().catch(e => {
           console.error("Audio playback error:", e);
           setPlay(false);
         });
-      } else {
+      }
+    } else {
+      if (audioRef.current) {
         audioRef.current.pause();
       }
-    } else if (isPlaying && !project?.audioUrl) {
-      // Default playing interval if no audio
-      const interval = window.setInterval(() => {
-        const nextIndex = (currentFrameIndex + 1) % (project?.frames.length || 1);
-        setCurrentFrame(nextIndex);
-        setCurrentTime(project?.frames[nextIndex]?.timestamp || 0);
-      }, 1000); 
-      return () => clearInterval(interval);
     }
-  }, [isPlaying, project?.audioUrl, currentFrameIndex]);
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+  }, [isPlaying, duration]);
 
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -153,17 +180,38 @@ export function Timeline() {
     setPlay(false);
   };
 
-  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
+
+  const updatePlayheadPosition = (clientX: number) => {
     if (!trackRef.current) return;
     const rect = trackRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+    const x = clientX - rect.left;
     const actualDuration = duration || 30;
-    const clickTime = Math.max(0, (x / rect.width) * actualDuration);
+    const clickTime = Math.max(0, Math.min(actualDuration, (x / rect.width) * actualDuration));
     
     setCurrentTime(clickTime);
     if (audioRef.current) {
       audioRef.current.currentTime = clickTime;
     }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return; // Only left click
+    if (isPlaying) setPlay(false);
+    setIsDraggingPlayhead(true);
+    updatePlayheadPosition(e.clientX);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDraggingPlayhead) {
+      updatePlayheadPosition(e.clientX);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDraggingPlayhead(false);
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
   const formatTime = (timeInSeconds: number) => {
@@ -189,11 +237,6 @@ export function Timeline() {
         <audio 
           ref={audioRef}
           src={project.audioUrl}
-          onTimeUpdate={() => {
-            if (audioRef.current && isPlaying) {
-              setCurrentTime(audioRef.current.currentTime);
-            }
-          }}
           onLoadedMetadata={() => {
             if (audioRef.current) {
               setDuration(audioRef.current.duration);
@@ -269,7 +312,14 @@ export function Timeline() {
       </div>
 
       {/* Frame Track (Waveform & Overlay) */}
-      <div className="flex-1 relative mt-2 px-2 h-12 flex items-center cursor-pointer group" onClick={handleTrackClick} ref={trackRef}>
+      <div 
+        className="flex-1 relative mt-2 px-2 h-12 flex items-center cursor-pointer group touch-none" 
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        ref={trackRef}
+      >
         {/* Waveform Canvas */}
         <canvas 
           ref={canvasRef} 
@@ -291,6 +341,7 @@ export function Timeline() {
                 isActive ? "z-30" : "z-10 hover:z-30"
               )}
               style={{ left: `calc(${Math.min(100, Math.max(0, leftPercent))}% + 0.5rem)` }}
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 setCurrentFrame(index);
@@ -314,9 +365,23 @@ export function Timeline() {
 
         {/* Playhead Line */}
         <div 
-          className="absolute top-0 bottom-0 w-[1px] bg-white z-30 pointer-events-none transition-all shadow-[0_0_5px_rgba(255,255,255,0.8)]"
-          style={{ left: `calc(${Math.min(100, (currentTime / (duration || 30)) * 100)}% + 0.5rem)` }}
-        />
+          className="absolute top-0 bottom-0 z-40 -translate-x-1/2 flex flex-col items-center pointer-events-none"
+          style={{ 
+            left: `calc(${Math.min(100, (currentTime / (duration || 30)) * 100)}% + 0.5rem)`,
+            transition: isDraggingPlayhead ? 'none' : 'left 0.1s linear'
+          }}
+        >
+          <div className={cn(
+            "w-4 h-4 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.6)] flex items-center justify-center transition-transform",
+            isDraggingPlayhead ? "bg-red-400 scale-125" : "bg-red-500 group-hover:scale-110"
+          )}>
+             <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
+          </div>
+          <div className={cn(
+            "w-[2px] flex-1 shadow-[0_0_5px_rgba(239,68,68,0.3)] transition-colors rounded-full",
+            isDraggingPlayhead ? "bg-red-400" : "bg-red-500"
+          )} />
+        </div>
       </div>
       
       <div className="flex justify-between text-[8px] text-neutral-600 font-mono mt-1 uppercase tracking-widest px-2">
@@ -326,13 +391,28 @@ export function Timeline() {
 
       {/* Frame Edit Modal */}
       {editingFrameIndex !== null && project.frames[editingFrameIndex] && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setEditingFrameIndex(null)}>
-          <div className="bg-[#1A1A1A] border border-white/10 rounded-xl p-5 shadow-2xl w-72 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-start justify-end p-10 md:p-20">
+          <motion.div 
+            drag
+            dragMomentum={false}
+            className="pointer-events-auto bg-[#1A1A1A]/90 border border-white/10 rounded-xl p-5 shadow-2xl w-72 flex flex-col gap-4 backdrop-blur-md" 
+            onPointerDown={e => e.stopPropagation()}
+            onPointerMove={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-3 cursor-move">
               <h3 className="text-neutral-200 font-medium text-sm">Frame {editingFrameIndex + 1} Settings</h3>
-              <span className="text-xs text-blue-400 font-mono bg-blue-500/10 px-2 py-0.5 rounded">
-                {formatTime(project.frames[editingFrameIndex].timestamp).substring(0, 5)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-blue-400 font-mono bg-blue-500/10 px-2 py-0.5 rounded">
+                  {formatTime(project.frames[editingFrameIndex].timestamp).substring(0, 5)}
+                </span>
+                <button 
+                  onClick={() => setEditingFrameIndex(null)}
+                  className="text-neutral-500 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10"
+                  onPointerDown={e => e.stopPropagation()}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -340,18 +420,22 @@ export function Timeline() {
               <div className="grid grid-cols-2 gap-2 text-xs text-neutral-300">
                 <button 
                   onClick={() => setFrameTransition(editingFrameIndex, 'linear')}
+                  onPointerDown={e => e.stopPropagation()}
                   className={cn("py-2 rounded border transition-colors", (!project.frames[editingFrameIndex].transitionType || project.frames[editingFrameIndex].transitionType === 'linear') ? "bg-blue-600/20 border-blue-500/50 text-blue-400" : "bg-white/5 border-transparent hover:bg-white/10")}
                 >Linear (직선)</button>
                 <button 
                   onClick={() => setFrameTransition(editingFrameIndex, 'curve')}
+                  onPointerDown={e => e.stopPropagation()}
                   className={cn("py-2 rounded border transition-colors", project.frames[editingFrameIndex].transitionType === 'curve' ? "bg-blue-600/20 border-blue-500/50 text-blue-400" : "bg-white/5 border-transparent hover:bg-white/10")}
                 >Curve (곡선)</button>
                 <button 
                   onClick={() => setFrameTransition(editingFrameIndex, 'jump')}
+                  onPointerDown={e => e.stopPropagation()}
                   className={cn("py-2 rounded border transition-colors", project.frames[editingFrameIndex].transitionType === 'jump' ? "bg-blue-600/20 border-blue-500/50 text-blue-400" : "bg-white/5 border-transparent hover:bg-white/10")}
                 >Jump (점프)</button>
                 <button 
                   onClick={() => setFrameTransition(editingFrameIndex, 'rotate')}
+                  onPointerDown={e => e.stopPropagation()}
                   className={cn("py-2 rounded border transition-colors", project.frames[editingFrameIndex].transitionType === 'rotate' ? "bg-blue-600/20 border-blue-500/50 text-blue-400" : "bg-white/5 border-transparent hover:bg-white/10")}
                 >Rotate (회전)</button>
               </div>
@@ -363,6 +447,7 @@ export function Timeline() {
                   removeFrame(editingFrameIndex);
                   setEditingFrameIndex(null);
                 }}
+                onPointerDown={e => e.stopPropagation()}
                 disabled={project.frames.length <= 1}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
               >
@@ -372,12 +457,13 @@ export function Timeline() {
               
               <button 
                 onClick={() => setEditingFrameIndex(null)}
+                onPointerDown={e => e.stopPropagation()}
                 className="px-4 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors font-medium"
               >
                 Done
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>,
         document.body
       )}

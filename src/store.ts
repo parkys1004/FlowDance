@@ -31,7 +31,7 @@ interface AppState {
   setStageConfig: (config: Partial<StageConfig>) => void;
   
   setAudio: (url: string, name: string) => void;
-  setCurrentTime: (time: number) => void;
+  setCurrentTime: (time: number | ((prev: number) => number)) => void;
   setDuration: (duration: number) => void;
 }
 
@@ -271,19 +271,21 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  setCurrentTime: (time) => {
+  setCurrentTime: (timeOrUpdater) => {
     set((state) => {
       if (!state.project) return state;
+      const newTime = typeof timeOrUpdater === 'function' ? timeOrUpdater(state.currentTime) : timeOrUpdater;
+
       // Also update frame index based on time
       const frames = state.project.frames;
       let activeIndex = 0;
       for (let i = frames.length - 1; i >= 0; i--) {
-        if (frames[i].timestamp <= time) {
+        if (frames[i].timestamp <= newTime) {
           activeIndex = i;
           break;
         }
       }
-      return { currentTime: time, currentFrameIndex: activeIndex };
+      return { currentTime: newTime, currentFrameIndex: activeIndex };
     });
   },
 
