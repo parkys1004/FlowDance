@@ -1,0 +1,6 @@
+{
+  "name": "FlowDance",
+  "description": "Choreography Formation Planner for visualizing and practicing complex dance formations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
