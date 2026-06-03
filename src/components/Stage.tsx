@@ -12,6 +12,7 @@ export function Stage() {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingMarkerId, setDraggingMarkerId] = useState<string | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   // 드래그 시작 시 커서↔멤버 중심 오프셋 (px)
   const grabOffsetRef = useRef<Record<string, { x: number; y: number }>>({});
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -167,9 +168,10 @@ export function Stage() {
 
   // 16:9 aspect ratio standard for stages
   return (
-    <div 
+    <div
       className="absolute inset-0 w-full h-full"
       ref={containerRef}
+      onClick={() => setSelectedMemberId(null)}
     >
       {/* Grid Lines */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -202,6 +204,10 @@ export function Stage() {
             onPanStart={(e, info) => handlePanStart(member.id, e, info)}
             onPan={(e, info) => handlePan(member.id, info)}
             onPanEnd={() => { setDraggingId(null); delete grabOffsetRef.current[member.id]; }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedMemberId(prev => prev === member.id ? null : member.id);
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               setEditingMemberId(member.id);
@@ -215,7 +221,17 @@ export function Stage() {
             style={{ position: 'absolute' }}
             className="touch-none w-12 h-12 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing group z-10"
           >
-            <motion.div 
+            {/* 선택 링 */}
+            {selectedMemberId === member.id && (
+              <div
+                className="absolute inset-0 rounded-full pointer-events-none z-50"
+                style={{
+                  boxShadow: `0 0 0 3px white, 0 0 0 5px ${member.color}, 0 0 14px 4px ${member.color}88`,
+                }}
+              />
+            )}
+
+            <motion.div
               className="dancer-dot transition-transform group-hover:scale-110 relative flex items-center justify-center"
               style={{ backgroundColor: member.color }}
               animate={{ rotate: logicalPos.rotation }}
@@ -225,17 +241,21 @@ export function Stage() {
               <div className="absolute -bottom-[8px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white z-0" />
               {/* Colored inner triangle */}
               <div className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent z-20" style={{ borderTopColor: member.color }} />
-              
-              <motion.span 
-                className="relative z-10 leading-none" 
+
+              <motion.span
+                className="relative z-10 leading-none"
                 animate={{ rotate: -logicalPos.rotation }}
                 transition={{ duration: 0 }}
               >
                 {member.name.substring(0, 1).toUpperCase()}
               </motion.span>
             </motion.div>
-            {/* Tooltip Name */}
-            <div className="absolute -top-6 whitespace-nowrap bg-black/80 backdrop-blur-md border border-white/10 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
+
+            {/* 이름 툴팁 — 선택 시 항상 표시, 아니면 호버 시 표시 */}
+            <div className={cn(
+              "absolute -top-6 whitespace-nowrap bg-black/80 backdrop-blur-md border border-white/10 text-white text-[10px] px-2 py-0.5 rounded pointer-events-none shadow-xl transition-opacity",
+              selectedMemberId === member.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            )}>
               {member.name}
             </div>
           </motion.div>
