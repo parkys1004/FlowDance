@@ -141,10 +141,18 @@ export const useStore = create<AppState>((set, get) => ({
   addFrame: () => {
     set((state) => {
       if (!state.project) return state;
-      
+
+      const entryOff = Math.max(
+        0,
+        ...((state.project.stageMarkers || [])
+          .filter(m => m.type === 'entry')
+          .map(m => m.seconds ?? 10)
+          .concat([0]))
+      );
       const currentPositions = state.project.frames[state.currentFrameIndex]?.positions || {};
-      const baseTime = state.currentTime;
-      
+      // 입장 오프셋을 제거한 오디오 기준 시간 (음수 = 입장 구간, 양수 초과 = 퇴장 구간)
+      const baseTime = state.currentTime - entryOff;
+
       const newFrame: Frame = {
         id: generateId(),
         positions: { ...currentPositions },
@@ -169,11 +177,18 @@ export const useStore = create<AppState>((set, get) => ({
       if (!state.project) return state;
       const currentFrame = state.project.frames[state.currentFrameIndex];
       if (!currentFrame) return state;
-      
+
+      const entryOff = Math.max(
+        0,
+        ...((state.project.stageMarkers || [])
+          .filter(m => m.type === 'entry')
+          .map(m => m.seconds ?? 10)
+          .concat([0]))
+      );
       const newFrame: Frame = {
         id: generateId(),
         positions: { ...currentFrame.positions },
-        timestamp: state.currentTime,
+        timestamp: state.currentTime - entryOff,
       };
       
       const newFrames = [...state.project.frames, newFrame].sort((a, b) => a.timestamp - b.timestamp);
@@ -282,7 +297,7 @@ export const useStore = create<AppState>((set, get) => ({
       if (!state.project) return state;
       const newTime = typeof timeOrUpdater === 'function' ? timeOrUpdater(state.currentTime) : timeOrUpdater;
 
-      // 입장 오프셋 제거 후 오디오 상대 시간으로 프레임 인덱스 계산
+      // 입장 오프셋 제거 후 오디오 기준 시간으로 프레임 인덱스 계산 (클램핑 없음 → 입장/퇴장 구간 마크 지원)
       const entryOff = Math.max(
         0,
         ...((state.project.stageMarkers || [])
@@ -290,7 +305,7 @@ export const useStore = create<AppState>((set, get) => ({
           .map(m => m.seconds ?? 10)
           .concat([0]))
       );
-      const audioTime = Math.max(0, newTime - entryOff);
+      const audioTime = newTime - entryOff;
 
       const frames = state.project.frames;
       let activeIndex = 0;

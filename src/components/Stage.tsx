@@ -95,8 +95,8 @@ export function Stage() {
        return { ...pos, rotation: pos.rotation || 0 };
     }
 
-    // 입장 구간에서는 audioTime = 0 (첫 프레임 위치 유지)
-    const time = Math.max(0, currentTime - stageEntryOffset);
+    // 오디오 기준 시간 (음수 = 입장 구간 → 마크가 없으면 첫 프레임 유지, 마크가 있으면 보간)
+    const time = currentTime - stageEntryOffset;
     const frames = project.frames;
     
     let activeIndex = 0;
