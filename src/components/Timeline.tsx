@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { useStore } from '../store';
-import { Play, Pause, Copy, Plus, Trash2, Upload, Music, LogIn, LogOut } from 'lucide-react';
+import { Play, Pause, Copy, Plus, Trash2, Upload, Music, LogIn, LogOut, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export function Timeline() {
@@ -288,6 +288,39 @@ export function Timeline() {
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
+  // ── 인디케이터 이동 헬퍼 ─────────────────────────────
+  const seekTo = (absTime: number) => {
+    if (isPlaying) setPlay(false);
+    const clamped = Math.max(0, Math.min(effectiveDuration, absTime));
+    setCurrentTime(clamped);
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, Math.min(clamped - entryOffset, audioDuration));
+    }
+  };
+
+  const goToStart = () => seekTo(0);
+  const goToEnd   = () => seekTo(effectiveDuration);
+
+  const goToPrevMark = () => {
+    if (!project.frames.length) return;
+    // 프레임 timestamp → 절대시간 정렬
+    const times = project.frames
+      .map(f => entryOffset + f.timestamp)
+      .sort((a, b) => a - b);
+    // 현재 시간보다 충분히 앞에 있는 마지막 마크
+    const prev = [...times].reverse().find(t => t < currentTime - 0.05);
+    seekTo(prev ?? times[0]);
+  };
+
+  const goToNextMark = () => {
+    if (!project.frames.length) return;
+    const times = project.frames
+      .map(f => entryOffset + f.timestamp)
+      .sort((a, b) => a - b);
+    const next = times.find(t => t > currentTime + 0.05);
+    seekTo(next ?? times[times.length - 1]);
+  };
+
   // 모든 멤버를 입장/퇴장 마커 위치로 이동
   const moveAllMembersTo = (type: 'entry' | 'exit') => {
     if (!project || editingFrameIndex === null) return;
@@ -406,17 +439,52 @@ export function Timeline() {
           
           <div className="w-px h-4 bg-white/10 mx-1" />
 
-          <button
-            onClick={togglePlay}
-            className={cn(
-              "p-1.5 rounded-full flex items-center justify-center transition-colors border",
-              isPlaying 
-                ? "bg-blue-600/20 text-blue-400 border-blue-600/30" 
-                : "bg-white/5 text-neutral-400 border-white/5 hover:text-white"
-            )}
-          >
-            {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
-          </button>
+          {/* 맨앞/이전마크/재생/다음마크/맨뒤 */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={goToStart}
+              title="맨 앞으로"
+              className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <ChevronsLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={goToPrevMark}
+              title="이전 마크"
+              disabled={!project.frames.length}
+              className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={togglePlay}
+              className={cn(
+                "p-1.5 rounded-full flex items-center justify-center transition-colors border mx-0.5",
+                isPlaying
+                  ? "bg-blue-600/20 text-blue-400 border-blue-600/30"
+                  : "bg-white/5 text-neutral-400 border-white/5 hover:text-white"
+              )}
+            >
+              {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+            </button>
+
+            <button
+              onClick={goToNextMark}
+              title="다음 마크"
+              disabled={!project.frames.length}
+              className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={goToEnd}
+              title="맨 뒤로"
+              className="p-1.5 rounded text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <ChevronsRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
           
           <button
             onClick={addFrame}
