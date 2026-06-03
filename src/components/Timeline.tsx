@@ -24,19 +24,23 @@ export function Timeline() {
     setFrameTransition
   } = useStore();
 
-  // 퇴장 마커 중 최대 seconds → 음악 후 추가 재생 시간
-  const exitOffset = Math.max(
-    0,
-    ...((project?.stageMarkers || [])
-      .filter(m => m.type === 'exit')
-      .map(m => m.seconds ?? 10))
-  );
-  const effectiveDuration = (duration || 30) + exitOffset;
+  const markers = project?.stageMarkers || [];
+  const entryOffset = Math.max(0, ...markers.filter(m => m.type === 'entry').map(m => m.seconds ?? 10).concat([0]));
+  const exitOffset  = Math.max(0, ...markers.filter(m => m.type === 'exit' ).map(m => m.seconds ?? 10).concat([0]));
+  const audioDuration = duration || 30;
+  // 전체 타임라인: [입장 준비] + [오디오] + [퇴장]
+  const effectiveDuration = entryOffset + audioDuration + exitOffset;
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // 루프 내 stale 클로저 방지용 refs
+  const entryOffsetRef = useRef(entryOffset);
+  const effectiveDurationRef = useRef(effectiveDuration);
+  useEffect(() => { entryOffsetRef.current = entryOffset; }, [entryOffset]);
+  useEffect(() => { effectiveDurationRef.current = effectiveDuration; }, [effectiveDuration]);
 
   const [peaks, setPeaks] = useState<number[]>([]);
   const [trackWidth, setTrackWidth] = useState(800);
@@ -102,81 +106,67 @@ export function Timeline() {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, trackWidth, height);
 
-    const audioDur = duration || 30;
-    const exitOff = Math.max(
-      0,
-      ...((project?.stageMarkers || [])
-        .filter(m => m.type === 'exit')
-        .map(m => m.seconds ?? 10))
-    );
-    const totalDur = audioDur + exitOff;
-    const audioPortion = audioDur / totalDur; // 웨이브폼이 차지하는 비율
-    const progress = Math.min(currentTime / totalDur, 1);
+    const aDur = duration || 30;
+    const mks  = project?.stageMarkers || [];
+    const entOff = Math.max(0, ...mks.filter(m => m.type === 'entry').map(m => m.seconds ?? 10).concat([0]));
+    const extOff = Math.max(0, ...mks.filter(m => m.type === 'exit' ).map(m => m.seconds ?? 10).concat([0]));
+    const total  = entOff + aDur + extOff;
 
-    // Draw Waveform or empty dashed line (audio portion only)
+    // 픽셀 경계
+    const entryEndX  = (entOff / total) * trackWidth;
+    const exitStartX = ((entOff + aDur) / total) * trackWidth;
+    const progressX  = (currentTime / total) * trackWidth;
+
+    // ── 입장 존 (초록) ──────────────────────────────────
+    if (entOff > 0) {
+      ctx.fillStyle = 'rgba(16,185,129,0.12)';
+      ctx.fillRect(0, 0, entryEndX, height);
+      ctx.strokeStyle = 'rgba(16,185,129,0.55)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(entryEndX, 0); ctx.lineTo(entryEndX, height); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(16,185,129,0.75)';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(`${entOff}s`, 4, height / 2 + 3);
+    }
+
+    // ── 파형 (오디오 구간) ─────────────────────────────
     if (peaks.length === 0) {
       ctx.strokeStyle = '#333';
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.moveTo(0, height / 2);
-      ctx.lineTo(trackWidth * audioPortion, height / 2);
+      ctx.moveTo(entryEndX, height / 2);
+      ctx.lineTo(exitStartX, height / 2);
       ctx.stroke();
       ctx.setLineDash([]);
     } else {
-      const waveWidth = trackWidth * audioPortion;
-      const barWidth = waveWidth / peaks.length;
-      const gap = barWidth * 0.2;
+      const waveWidth = exitStartX - entryEndX;
+      const barWidth  = waveWidth / peaks.length;
+      const gap       = barWidth * 0.2;
       const drawWidth = Math.max(1, barWidth - gap);
-
       peaks.forEach((peak, i) => {
         const barHeight = Math.max(2, peak * height);
-        const x = i * barWidth;
+        const x = entryEndX + i * barWidth;
         const y = (height - barHeight) / 2;
-        ctx.fillStyle = (x / trackWidth) <= progress ? '#3B82F6' : '#3F3F46';
+        ctx.fillStyle = x <= progressX ? '#3B82F6' : '#3F3F46';
         ctx.beginPath();
         ctx.roundRect(x + gap / 2, y, drawWidth, barHeight, 2);
         ctx.fill();
       });
     }
 
-    // Draw exit zone (orange) after audio
-    if (exitOff > 0) {
-      const exitStart = trackWidth * audioPortion;
+    // ── 퇴장 존 (주황) ──────────────────────────────────
+    if (extOff > 0) {
       ctx.fillStyle = 'rgba(249,115,22,0.12)';
-      ctx.fillRect(exitStart, 0, trackWidth - exitStart, height);
-      // Divider line
-      ctx.strokeStyle = 'rgba(249,115,22,0.5)';
+      ctx.fillRect(exitStartX, 0, trackWidth - exitStartX, height);
+      ctx.strokeStyle = 'rgba(249,115,22,0.55)';
       ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(exitStart, 0);
-      ctx.lineTo(exitStart, height);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(exitStartX, 0); ctx.lineTo(exitStartX, height); ctx.stroke();
       ctx.setLineDash([]);
-      // "퇴장" label
-      ctx.fillStyle = 'rgba(249,115,22,0.7)';
-      ctx.font = `bold 9px sans-serif`;
-      ctx.fillText(`+${exitOff}s`, exitStart + 4, height / 2 + 3);
+      ctx.fillStyle = 'rgba(249,115,22,0.75)';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(`+${extOff}s`, exitStartX + 4, height / 2 + 3);
     }
-
-    // Draw entry zones (green) for each entry marker
-    const entryMarkers = (project?.stageMarkers || []).filter(
-      m => m.type === 'entry' && m.timestamp !== undefined
-    );
-    entryMarkers.forEach(marker => {
-      const ts = marker.timestamp!;
-      const sec = marker.seconds ?? 10;
-      const zoneStart = Math.max(0, (ts - sec) / totalDur) * trackWidth;
-      const zoneEnd = (ts / totalDur) * trackWidth;
-      ctx.fillStyle = 'rgba(16,185,129,0.15)';
-      ctx.fillRect(zoneStart, 0, zoneEnd - zoneStart, height);
-      ctx.strokeStyle = 'rgba(16,185,129,0.5)';
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(zoneStart, 0);
-      ctx.lineTo(zoneStart, height);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    });
 
   }, [peaks, currentTime, duration, trackWidth, project?.stageMarkers]);
 
@@ -185,37 +175,56 @@ export function Timeline() {
     let lastTime = performance.now();
 
     const loop = (now: DOMHighResTimeStamp) => {
+      if (!useStore.getState().isPlaying) return;
+
       const dt = (now - lastTime) / 1000;
       lastTime = now;
 
-      if (isPlaying) {
-        // 오디오가 끝나지 않았으면 오디오 시간 동기화, 끝났으면 타이머 모드
-        if (audioRef.current && !audioRef.current.ended) {
-          setCurrentTime(audioRef.current.currentTime);
-        } else {
-          setCurrentTime((prev) => {
-            const next = prev + dt;
-            if (next >= effectiveDuration) {
-              setPlay(false);
-              return effectiveDuration;
-            }
-            return next;
-          });
+      const ct = useStore.getState().currentTime;
+      const eo = entryOffsetRef.current;
+      const ed = effectiveDurationRef.current;
+
+      if (ct < eo) {
+        // ① 입장 구간: 타이머만 진행, eo 도달 시 오디오 시작
+        const next = ct + dt;
+        if (next >= eo && audioRef.current && audioRef.current.paused) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => useStore.getState().setPlay(false));
         }
-        animationFrameId = requestAnimationFrame(loop);
+        useStore.getState().setCurrentTime(Math.min(next, ed));
+      } else if (audioRef.current && !audioRef.current.ended) {
+        // ② 오디오 구간: 오디오 시간과 동기
+        useStore.getState().setCurrentTime(eo + audioRef.current.currentTime);
+      } else {
+        // ③ 퇴장 구간: 타이머 진행 후 종료
+        const next = ct + dt;
+        if (next >= ed) {
+          useStore.getState().setPlay(false);
+          useStore.getState().setCurrentTime(ed);
+        } else {
+          useStore.getState().setCurrentTime(next);
+        }
       }
+
+      animationFrameId = requestAnimationFrame(loop);
     };
 
     if (isPlaying) {
       lastTime = performance.now();
-      animationFrameId = requestAnimationFrame(loop);
 
-      if (audioRef.current) {
+      const ct = useStore.getState().currentTime;
+      const eo = entryOffsetRef.current;
+
+      // 입장 구간이 끝난 상태에서 재개하면 바로 오디오 시작
+      if (ct >= eo && audioRef.current) {
+        audioRef.current.currentTime = Math.max(0, ct - eo);
         audioRef.current.play().catch(e => {
           console.error("Audio playback error:", e);
           setPlay(false);
         });
       }
+
+      animationFrameId = requestAnimationFrame(loop);
     } else {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -247,8 +256,9 @@ export function Timeline() {
 
     setCurrentTime(clickTime);
     if (audioRef.current) {
-      // 오디오 범위 내에서만 seek
-      audioRef.current.currentTime = Math.min(clickTime, duration || 30);
+      // 입장 구간이면 오디오를 0으로, 오디오 구간이면 해당 위치로 seek
+      const audioSeek = Math.max(0, clickTime - entryOffset);
+      audioRef.current.currentTime = Math.min(audioSeek, audioDuration);
     }
   };
 
@@ -305,7 +315,10 @@ export function Timeline() {
               setDuration(audioRef.current.duration);
             }
           }}
-          onEnded={() => { if (exitOffset <= 0) setPlay(false); }}
+          onEnded={() => {
+            // 퇴장 구간이 없으면 즉시 중지, 있으면 루프가 타이머로 계속 진행
+            if (exitOffset <= 0) setPlay(false);
+          }}
         />
       )}
 
@@ -393,7 +406,7 @@ export function Timeline() {
         {/* Frames Overlay */}
         {project.frames.map((frame, index) => {
           const isActive = currentFrameIndex === index;
-          const leftPercent = (frame.timestamp / effectiveDuration) * 100;
+          const leftPercent = ((entryOffset + frame.timestamp) / effectiveDuration) * 100;
 
           return (
             <div 
@@ -449,9 +462,8 @@ export function Timeline() {
       <div className="flex justify-between text-[8px] text-neutral-600 font-mono mt-1 uppercase tracking-widest px-2">
         <span>Start</span>
         <div className="flex items-center gap-1">
-          {exitOffset > 0 && (
-            <span className="text-orange-500/60">+{exitOffset}s</span>
-          )}
+          {exitOffset > 0 && <span className="text-orange-500/60">+{exitOffset}s</span>}
+          {entryOffset > 0 && <span className="text-emerald-500/60">{entryOffset}s↑</span>}
           <span>{duration ? formatTime(effectiveDuration) : '30:00.00'.substring(0, 5)}</span>
         </div>
       </div>

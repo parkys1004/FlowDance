@@ -77,16 +77,26 @@ export function Stage() {
     state.updateMemberPosition(memberId, { ...pos, x: newX, y: newY });
   };
 
+  // 입장 오프셋 계산 (currentTime은 입장 구간 포함 전체 시간)
+  const stageEntryOffset = Math.max(
+    0,
+    ...((project?.stageMarkers || [])
+      .filter(m => m.type === 'entry')
+      .map(m => m.seconds ?? 10)
+      .concat([0]))
+  );
+
   const getRenderPosition = (memberId: string): { x: number, y: number, rotation: number } => {
     if (!project || project.frames.length === 0) return { x: 50, y: 50, rotation: 0 };
-    
+
     // If dragging, snap to current frame's position and ignore interpolation
     if (draggingId === memberId) {
        const pos = project.frames[currentFrameIndex]?.positions[memberId] || { x: 50, y: 50, rotation: 0 };
        return { ...pos, rotation: pos.rotation || 0 };
     }
 
-    const time = currentTime;
+    // 입장 구간에서는 audioTime = 0 (첫 프레임 위치 유지)
+    const time = Math.max(0, currentTime - stageEntryOffset);
     const frames = project.frames;
     
     let activeIndex = 0;
