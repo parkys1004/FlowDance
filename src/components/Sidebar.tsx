@@ -1,6 +1,7 @@
 import { useState, FormEvent, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../store';
-import { UserPlus, Trash2, LogIn, LogOut, Pencil, Check, RotateCcw } from 'lucide-react';
+import { UserPlus, Trash2, LogIn, LogOut, Pencil, Check, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const COLORS = [
@@ -9,21 +10,65 @@ const COLORS = [
   '#d946ef', '#f43f5e'
 ];
 
+// ── 확인 모달 ────────────────────────────────────────────
+interface ConfirmState {
+  message: string;
+  subMessage?: string;
+  onConfirm: () => void;
+}
+
+function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => void }) {
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-6 shadow-2xl w-72 flex flex-col gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-red-500/15 flex items-center justify-center shrink-0 mt-0.5">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-neutral-200">{state.message}</p>
+            {state.subMessage && (
+              <p className="text-xs text-neutral-500 mt-1">{state.subMessage}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 rounded-lg bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white text-xs font-medium transition-colors"
+          >
+            취소
+          </button>
+          <button
+            onClick={() => { state.onConfirm(); onClose(); }}
+            className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-medium transition-colors"
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Sidebar ──────────────────────────────────────────────
 export function Sidebar() {
   const {
     project,
     addMember,
     removeMember,
     updateMember,
+    clearAllMembers,
     addStageMarker,
     removeStageMarker,
     updateStageMarkerSeconds,
-    resetMemberPositions,
   } = useStore();
 
   const [newMemberName, setNewMemberName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,9 +85,9 @@ export function Sidebar() {
     setNewMemberName('');
   };
 
-  const startEdit = (id: string, currentName: string) => {
+  const startEdit = (id: string, name: string) => {
     setEditingId(id);
-    setEditingName(currentName);
+    setEditingName(name);
   };
 
   const commitEdit = () => {
@@ -53,22 +98,41 @@ export function Sidebar() {
     setEditingName('');
   };
 
+  const askDeleteMember = (id: string, name: string) => {
+    setConfirm({
+      message: `'${name}'을(를) 삭제할까요?`,
+      subMessage: '모든 프레임에서 해당 멤버가 제거됩니다.',
+      onConfirm: () => removeMember(id),
+    });
+  };
+
+  const askClearAll = () => {
+    setConfirm({
+      message: '모든 멤버를 삭제할까요?',
+      subMessage: `총 ${project.members.length}명이 모든 프레임에서 제거됩니다.`,
+      onConfirm: clearAllMembers,
+    });
+  };
+
   return (
     <div className="glass-card rounded-xl p-4 flex-1 flex flex-col overflow-hidden">
 
-      {/* 헤더 + 초기화 버튼 */}
+      {/* 확인 모달 */}
+      {confirm && <ConfirmModal state={confirm} onClose={() => setConfirm(null)} />}
+
+      {/* 헤더 + 전체 삭제 버튼 */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold">
           Team Members ({project.members.length})
         </h3>
         <button
-          onClick={resetMemberPositions}
+          onClick={askClearAll}
           disabled={project.members.length === 0}
-          title="현재 프레임 멤버 위치 초기화"
-          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-neutral-500 border border-white/5 hover:bg-white/10 hover:text-neutral-300 transition-colors disabled:opacity-30"
+          title="모든 멤버 삭제"
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-red-500/70 border border-red-500/20 hover:bg-red-500/10 hover:text-red-400 transition-colors disabled:opacity-30"
         >
-          <RotateCcw className="w-3 h-3" />
-          초기화
+          <Trash2 className="w-3 h-3" />
+          전체 삭제
         </button>
       </div>
 
@@ -80,7 +144,6 @@ export function Sidebar() {
             className="flex items-center justify-between px-2 py-1.5 hover:bg-white/5 rounded-lg transition group"
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              {/* 컬러 아바타 */}
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm shrink-0"
                 style={{ backgroundColor: member.color }}
@@ -88,7 +151,6 @@ export function Sidebar() {
                 {member.name.substring(0, 2)}
               </div>
 
-              {/* 이름 — 편집 중이면 input, 아니면 텍스트 */}
               {editingId === member.id ? (
                 <input
                   ref={editInputRef}
@@ -106,7 +168,6 @@ export function Sidebar() {
               )}
             </div>
 
-            {/* 액션 버튼 */}
             <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
               {editingId === member.id ? (
                 <button onClick={commitEdit} className="text-blue-400 hover:text-blue-300 p-0.5">
@@ -121,7 +182,7 @@ export function Sidebar() {
                 </button>
               )}
               <button
-                onClick={() => removeMember(member.id)}
+                onClick={() => askDeleteMember(member.id, member.name)}
                 className="text-neutral-500 hover:text-red-400 p-0.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -131,9 +192,7 @@ export function Sidebar() {
         ))}
 
         {project.members.length === 0 && (
-          <div className="text-center p-6 text-neutral-500 text-xs">
-            No dancers yet.
-          </div>
+          <div className="text-center p-6 text-neutral-500 text-xs">No dancers yet.</div>
         )}
       </div>
 

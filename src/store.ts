@@ -34,7 +34,7 @@ interface AppState {
   setCurrentTime: (time: number | ((prev: number) => number)) => void;
   setDuration: (duration: number) => void;
 
-  resetMemberPositions: () => void;
+  clearAllMembers: () => void;
 
   addStageMarker: (type: StageMarkerType, label?: string) => void;
   removeStageMarker: (id: string) => void;
@@ -325,23 +325,20 @@ export const useStore = create<AppState>((set, get) => ({
     set({ duration });
   },
 
-  resetMemberPositions: () => {
+  clearAllMembers: () => {
     set((state) => {
       if (!state.project) return state;
-      const frames = [...state.project.frames];
-      const frame = frames[state.currentFrameIndex];
-      if (!frame) return state;
-      const members = state.project.members;
-      const newPositions = { ...frame.positions };
-      members.forEach((member, i) => {
-        newPositions[member.id] = {
-          x: (i + 1) * 100 / (members.length + 1),
-          y: 50,
-          rotation: 0,
-        };
-      });
-      frames[state.currentFrameIndex] = { ...frame, positions: newPositions };
-      return { project: { ...state.project, frames } };
+      const updatedFrames = state.project.frames.map(frame => ({
+        ...frame,
+        positions: {},
+      }));
+      return {
+        project: {
+          ...state.project,
+          members: [],
+          frames: updatedFrames,
+        },
+      };
     });
   },
 
