@@ -12,6 +12,8 @@ export function Stage() {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingMarkerId, setDraggingMarkerId] = useState<string | null>(null);
+  // 드래그 시작 시 커서↔멤버 중심 오프셋 (px)
+  const grabOffsetRef = useRef<Record<string, { x: number; y: number }>>({});
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
 
@@ -53,27 +55,59 @@ export function Stage() {
     state.updateStageMarkerPosition(markerId, newX, newY);
   };
 
-  const handlePan = (memberId: string, info: PanInfo) => {
-    if (!containerRef.current || dimensions.width === 0) return;
-    
+  const handlePanStart = (memberId: string, info: PanInfo) => {
+    setDraggingId(memberId);
+    if (!containerRef.current) return;
+
     const state = useStore.getState();
     if (!state.project) return;
-    
+
     const frame = state.project.frames[state.currentFrameIndex];
     if (!frame) return;
 
     const pos = frame.positions[memberId] || { x: 50, y: 50, rotation: 0 };
-    
-    const percentDx = (info.delta.x / dimensions.width) * 100;
-    const percentDy = (info.delta.y / dimensions.height) * 100;
+    const rect = containerRef.current.getBoundingClientRect();
 
-    let newX = pos.x + (state.stageConfig.mirrorMode ? -percentDx : percentDx);
-    let newY = pos.y + percentDy;
+    // 멤버 중심의 뷰포트 좌표 계산
+    let renderX = pos.x;
+    if (state.stageConfig.mirrorMode) renderX = 100 - renderX;
 
-    newX = Math.max(0, Math.min(100, newX));
-    newY = Math.max(0, Math.min(100, newY));
+    const centerX = rect.left + (renderX / 100) * rect.width;
+    const centerY = rect.top  + (pos.y   / 100) * rect.height;
 
-    // Call state action via the static getState to prevent stale closures
+    // 커서 - 멤버 중심 = grab offset (드래그 내내 유지할 오프셋)
+    grabOffsetRef.current[memberId] = {
+      x: info.point.x - centerX,
+      y: info.point.y - centerY,
+    };
+  };
+
+  const handlePan = (memberId: string, info: PanInfo) => {
+    if (!containerRef.current) return;
+
+    const state = useStore.getState();
+    if (!state.project) return;
+
+    const frame = state.project.frames[state.currentFrameIndex];
+    if (!frame) return;
+
+    const pos   = frame.positions[memberId] || { x: 50, y: 50, rotation: 0 };
+    const rect  = containerRef.current.getBoundingClientRect();
+    const grab  = grabOffsetRef.current[memberId] ?? { x: 0, y: 0 };
+
+    // 목표 중심 = 커서 - grab offset
+    const targetX = info.point.x - grab.x;
+    const targetY = info.point.y - grab.y;
+
+    // 스테이지 퍼센트로 변환
+    let newXPct = ((targetX - rect.left) / rect.width)  * 100;
+    const newYPct = ((targetY - rect.top)  / rect.height) * 100;
+
+    if (state.stageConfig.mirrorMode) newXPct = 100 - newXPct;
+
+    const newX = Math.max(0, Math.min(100, newXPct));
+    const newY = Math.max(0, Math.min(100, newYPct));
+
     state.updateMemberPosition(memberId, { ...pos, x: newX, y: newY });
   };
 
@@ -180,9 +214,9 @@ export function Stage() {
         return (
           <motion.div
             key={member.id}
-            onPanStart={() => setDraggingId(member.id)}
+            onPanStart={(e, info) => handlePanStart(member.id, info)}
             onPan={(e, info) => handlePan(member.id, info)}
-            onPanEnd={() => setDraggingId(null)}
+            onPanEnd={() => { setDraggingId(null); delete grabOffsetRef.current[member.id]; }}
             onContextMenu={(e) => {
               e.preventDefault();
               setEditingMemberId(member.id);
