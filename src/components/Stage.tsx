@@ -366,7 +366,7 @@ export function Stage() {
 
       {/* Member Edit Modal */}
       {editingMemberId && project.members.find(m => m.id === editingMemberId) && createPortal(
-        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-start justify-start p-10 md:p-20">
+        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
           <motion.div 
             drag
             dragMomentum={false}

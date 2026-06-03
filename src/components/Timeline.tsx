@@ -399,7 +399,7 @@ export function Timeline() {
 
       {/* Frame Edit Modal */}
       {editingFrameIndex !== null && project.frames[editingFrameIndex] && createPortal(
-        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-start justify-end p-10 md:p-20">
+        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
           <motion.div 
             drag
             dragMomentum={false}
