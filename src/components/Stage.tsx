@@ -281,8 +281,9 @@ export function Stage() {
             onPanStart={() => setDraggingMarkerId(marker.id)}
             onPan={(e, info) => handleMarkerPan(marker.id, info)}
             onPanEnd={() => setDraggingMarkerId(null)}
-            onContextMenu={(e) => { e.preventDefault(); setEditingMarkerId(marker.id); }}
-            className="w-14 h-14 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none group z-20"
+            onClick={(e) => { e.stopPropagation(); if (!draggingMarkerId) setEditingMarkerId(marker.id); }}
+            onContextMenu={(e) => e.preventDefault()}
+            className="w-14 h-14 flex items-center justify-center cursor-pointer touch-none group z-20"
           >
             {/* Pulsing ring on hover */}
             <div className={cn(
@@ -308,7 +309,7 @@ export function Stage() {
 
             {/* Tooltip */}
             <div className="absolute -top-7 whitespace-nowrap bg-black/80 backdrop-blur border border-white/10 text-neutral-300 text-[9px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              우클릭 → 편집/삭제
+              클릭 → 편집
             </div>
           </motion.div>
         );

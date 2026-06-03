@@ -544,7 +544,7 @@ export function Timeline() {
           className="absolute top-0 bottom-0 z-40 -translate-x-1/2 flex flex-col items-center pointer-events-none"
           style={{ 
             left: `calc(${Math.min(100, (currentTime / effectiveDuration) * 100)}% + 0.5rem)`,
-            transition: isDraggingPlayhead ? 'none' : 'left 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            transition: 'none'
           }}
         >
           <div className={cn(
