@@ -1,5 +1,6 @@
 import { useState, FormEvent, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import { useStore } from '../store';
 import { UserPlus, Trash2, LogIn, LogOut, Pencil, Check, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -20,8 +21,14 @@ interface ConfirmState {
 function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => void }) {
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-6 shadow-2xl w-72 flex flex-col gap-4">
-        <div className="flex items-start gap-3">
+      <motion.div
+        drag
+        dragMomentum={false}
+        dragElastic={0.08}
+        className="bg-[#1A1A1A] border border-white/10 rounded-2xl p-6 shadow-2xl w-72 flex flex-col gap-4 cursor-move select-none"
+        onPointerDown={e => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3 pointer-events-none">
           <div className="w-8 h-8 rounded-full bg-red-500/15 flex items-center justify-center shrink-0 mt-0.5">
             <AlertTriangle className="w-4 h-4 text-red-400" />
           </div>
@@ -32,21 +39,23 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
             )}
           </div>
         </div>
-        <div className="flex gap-2 pt-1">
+        <div className="flex gap-2 pt-1 pointer-events-auto">
           <button
             onClick={onClose}
-            className="flex-1 py-2 rounded-lg bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white text-xs font-medium transition-colors"
+            className="flex-1 py-2 rounded-lg bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            onPointerDown={e => e.stopPropagation()}
           >
             취소
           </button>
           <button
             onClick={() => { state.onConfirm(); onClose(); }}
-            className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-medium transition-colors"
+            className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-medium transition-colors cursor-pointer"
+            onPointerDown={e => e.stopPropagation()}
           >
             삭제
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>,
     document.body
   );
