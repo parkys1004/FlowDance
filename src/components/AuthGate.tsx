@@ -101,18 +101,19 @@ export function AuthGate() {
           </button>
         </form>
 
-        <div className="mt-5 pt-5 border-t border-white/8 text-center">
+        <div className="mt-5 pt-5 border-t border-white/8 flex flex-col gap-2 text-center">
           <p className="text-xs text-neutral-500">
-            코드가 없으신가요?{' '}
-            <a
-              href="https://dancehive.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-            >
-              댄스하이브에서 발급받기 →
-            </a>
+            코드가 없으신가요?
           </p>
+          <a
+            href="https://dancehive.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
+          >
+            <span>🐝</span>
+            댄스하이브 로그인 → 마이페이지 → 코드 발급 요청
+          </a>
         </div>
       </div>
 
