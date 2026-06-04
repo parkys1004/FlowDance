@@ -171,12 +171,19 @@ export function Sidebar() {
             className="flex items-center justify-between px-2 py-1.5 hover:bg-white/5 rounded-lg transition group"
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm shrink-0"
+              <label
+                className="relative w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white uppercase shadow-sm shrink-0 cursor-pointer hover:ring-2 hover:ring-white/40 hover:ring-offset-1 hover:ring-offset-black transition-all"
                 style={{ backgroundColor: member.color }}
+                title="클릭하여 색상 변경"
               >
                 {member.name.substring(0, 2)}
-              </div>
+                <input
+                  type="color"
+                  value={member.color}
+                  onChange={e => updateMember(member.id, { color: e.target.value })}
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                />
+              </label>
 
               {editingId === member.id ? (
                 <input
