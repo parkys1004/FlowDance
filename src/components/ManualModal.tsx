@@ -16,7 +16,7 @@ interface Section {
 }
 
 const KBD = ({ children }: { children: ReactNode }) => (
-  <kbd className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/10 border border-white/15 text-[10px] font-mono text-neutral-300 leading-none">
+  <kbd className="inline-flex items-center px-2 py-1 rounded-md bg-white/10 border border-white/20 text-xs font-mono text-neutral-200 leading-none">
     {children}
   </kbd>
 );
@@ -148,53 +148,53 @@ export function ManualModal({ onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-[#141414] border border-white/10 rounded-2xl shadow-2xl w-full max-w-xl max-h-[88vh] flex flex-col"
+        className="bg-[#141414] border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/8 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
-              <MousePointer className="w-4 h-4 text-neutral-300" />
+        <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
+              <MousePointer className="w-5 h-5 text-neutral-200" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-neutral-100">사용 가이드</h2>
-              <p className="text-[10px] text-neutral-500">FlowDance 공연동선</p>
+              <h2 className="text-base font-bold text-neutral-100 tracking-tight">사용 가이드</h2>
+              <p className="text-xs text-neutral-500 mt-0.5">FlowDance 공연동선</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-500 hover:text-white hover:bg-white/10 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 콘텐츠 (스크롤) */}
-        <div className="overflow-y-auto px-5 py-4 space-y-3 flex-1 scrollbar-hide">
+        <div className="overflow-y-auto px-6 py-5 space-y-3 flex-1 scrollbar-hide">
           {SECTIONS.map((sec) => (
             <div
               key={sec.title}
-              className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4"
+              className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-5"
             >
               {/* 섹션 타이틀 */}
-              <div className="flex items-center gap-2 mb-3">
-                <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${sec.color}`}>
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${sec.color}`}>
                   {sec.icon}
                 </div>
-                <h3 className="text-xs font-semibold text-neutral-200">{sec.title}</h3>
+                <h3 className="text-sm font-bold text-neutral-100 tracking-tight">{sec.title}</h3>
               </div>
 
               {/* 단축키 섹션 */}
               {sec.title === '키보드 단축키' ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {SHORTCUTS.map(({ keys, desc }) => (
-                    <div key={desc} className="flex items-center justify-between gap-3">
-                      <span className="text-[11px] text-neutral-400">{desc}</span>
-                      <div className="flex items-center gap-1 shrink-0">
+                    <div key={desc} className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-neutral-300">{desc}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {keys.map((k, i) => (
-                          <span key={i} className="flex items-center gap-1">
-                            {i > 0 && <span className="text-[9px] text-neutral-600">+</span>}
+                          <span key={i} className="flex items-center gap-1.5">
+                            {i > 0 && <span className="text-xs text-neutral-600 font-bold">+</span>}
                             <KBD>{k}</KBD>
                           </span>
                         ))}
@@ -203,12 +203,12 @@ export function ManualModal({ onClose }: Props) {
                   ))}
                 </div>
               ) : (
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {sec.items.map((item) => (
-                    <li key={item.text} className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-neutral-300">{item.text}</span>
+                    <li key={item.text} className="flex flex-col gap-1">
+                      <span className="text-sm font-semibold text-neutral-200">{item.text}</span>
                       {item.sub && (
-                        <span className="text-[11px] text-neutral-500 leading-relaxed">{item.sub}</span>
+                        <span className="text-sm text-neutral-400 leading-relaxed">{item.sub}</span>
                       )}
                     </li>
                   ))}
@@ -219,8 +219,8 @@ export function ManualModal({ onClose }: Props) {
         </div>
 
         {/* 푸터 */}
-        <div className="px-5 py-3 border-t border-white/8 shrink-0">
-          <p className="text-[10px] text-neutral-600 text-center">
+        <div className="px-6 py-3.5 border-t border-white/10 shrink-0">
+          <p className="text-xs text-neutral-600 text-center">
             ESC 또는 바깥 클릭으로 닫기
           </p>
         </div>
