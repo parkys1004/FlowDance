@@ -65,16 +65,16 @@ function hash(a: number, b: number) {
 
 function drawAudience(ctx: CanvasRenderingContext2D, W: number, H: number) {
   // 스테이지 바닥 그림자
-  const shadow = ctx.createLinearGradient(0, H * 0.78, 0, H);
+  const shadow = ctx.createLinearGradient(0, H * 0.86, 0, H);
   shadow.addColorStop(0, 'rgba(0,0,0,0)');
   shadow.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = shadow;
-  ctx.fillRect(0, H * 0.78, W, H * 0.22);
+  ctx.fillRect(0, H * 0.86, W, H * 0.14);
 
   const rows = [
-    { yF: 0.875, count: 24, rF: 0.025, opacity: 0.30 },
-    { yF: 0.920, count: 19, rF: 0.032, opacity: 0.45 },
-    { yF: 0.965, count: 14, rF: 0.040, opacity: 0.62 },
+    { yF: 0.910, count: 24, rF: 0.018, opacity: 0.30 },
+    { yF: 0.940, count: 19, rF: 0.023, opacity: 0.45 },
+    { yF: 0.972, count: 14, rF: 0.028, opacity: 0.62 },
   ];
 
   rows.forEach(({ yF, count, rF, opacity }, ri) => {
@@ -99,7 +99,7 @@ function drawAudience(ctx: CanvasRenderingContext2D, W: number, H: number) {
 
   // 좌우 페이드
   const fadeW = W * 0.10;
-  const fadeY = H * 0.82;
+  const fadeY = H * 0.88;
   const fadeH = H * 0.18;
 
   const fadeL = ctx.createLinearGradient(0, 0, fadeW, 0);
@@ -154,7 +154,7 @@ function drawStage(
   ctx.font = 'bold 13px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(`FRONT${mirror ? ' (MIRROR)' : ''}`, W / 2, H * 0.79);
+  ctx.fillText(`FRONT${mirror ? ' (MIRROR)' : ''}`, W / 2, H * 0.87);
   ctx.restore();
 
   project.members.forEach((member) => {

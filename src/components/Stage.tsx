@@ -189,7 +189,7 @@ export function Stage() {
 
       {/* FRONT 레이블 — 관중석 위에 표시 */}
       <div className="absolute left-1/2 -translate-x-1/2 text-[10px] font-mono text-neutral-500 font-medium tracking-[0.2em] pointer-events-none z-[3]"
-        style={{ bottom: '21%' }}>
+        style={{ bottom: '13%' }}>
         FRONT {stageConfig.mirrorMode ? '(MIRROR)' : ''}
       </div>
 
@@ -198,9 +198,9 @@ export function Stage() {
         const W = dimensions.width;
         const H = dimensions.height;
         const rows = [
-          { yF: 0.875, count: 24, rF: 0.025, opacity: 0.30 },
-          { yF: 0.920, count: 19, rF: 0.032, opacity: 0.45 },
-          { yF: 0.965, count: 14, rF: 0.040, opacity: 0.62 },
+          { yF: 0.910, count: 24, rF: 0.018, opacity: 0.30 },
+          { yF: 0.940, count: 19, rF: 0.023, opacity: 0.45 },
+          { yF: 0.972, count: 14, rF: 0.028, opacity: 0.62 },
         ];
         const hash = (a: number, b: number) =>
           (((Math.sin(a * 127.1 + b * 311.7) * 43758.5453) % 1) + 1) % 1;
@@ -225,7 +225,7 @@ export function Stage() {
             </defs>
 
             {/* 스테이지 바닥 그림자 */}
-            <rect x="0" y={H * 0.78} width={W} height={H * 0.22} fill="url(#audShadow)" />
+            <rect x="0" y={H * 0.86} width={W} height={H * 0.14} fill="url(#audShadow)" />
 
             {/* 관중 실루엣 */}
             {rows.flatMap((row, ri) =>
@@ -246,8 +246,8 @@ export function Stage() {
             )}
 
             {/* 좌우 페이드 */}
-            <rect x="0"        y={H * 0.82} width={W * 0.10} height={H * 0.18} fill="url(#audFadeL)" />
-            <rect x={W * 0.90} y={H * 0.82} width={W * 0.10} height={H * 0.18} fill="url(#audFadeR)" />
+            <rect x="0"        y={H * 0.88} width={W * 0.10} height={H * 0.12} fill="url(#audFadeL)" />
+            <rect x={W * 0.90} y={H * 0.88} width={W * 0.10} height={H * 0.12} fill="url(#audFadeR)" />
           </svg>
         );
       })()}
