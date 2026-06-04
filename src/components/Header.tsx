@@ -1,8 +1,10 @@
 import { useStore } from '../store';
-import { Settings, Play, Download, ChevronLeft } from 'lucide-react';
+import { Video, ChevronLeft, X } from 'lucide-react';
+import { useVideoExport } from '../hooks/useVideoExport';
 
 export function Header() {
   const { project, stageConfig, setStageConfig } = useStore();
+  const { startExport, isRecording, progress, cancelExport } = useVideoExport();
 
   if (!project) return null;
 
@@ -35,11 +37,38 @@ export function Header() {
           <span className="hidden sm:inline">Mirror Mode</span>
           <span className="inline sm:hidden">Mirror</span>
         </button>
-        <button className="px-2 md:px-3 py-1.5 text-[10px] sm:text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition font-medium flex items-center gap-1.5 md:gap-2 whitespace-nowrap">
-          <Download className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">Export Formation</span>
-          <span className="inline sm:hidden">Export</span>
-        </button>
+        {isRecording ? (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/20 border border-red-600/30 rounded-md">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+              <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-red-500 rounded-full transition-all duration-100"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-red-400 font-mono w-8 shrink-0">
+                {Math.round(progress * 100)}%
+              </span>
+            </div>
+            <button
+              onClick={cancelExport}
+              className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-md transition"
+              title="취소"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={startExport}
+            className="px-2 md:px-3 py-1.5 text-[10px] sm:text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition font-medium flex items-center gap-1.5 md:gap-2 whitespace-nowrap"
+          >
+            <Video className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Export MP4</span>
+            <span className="inline sm:hidden">Export</span>
+          </button>
+        )}
       </div>
     </header>
   );
