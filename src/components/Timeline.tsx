@@ -634,32 +634,6 @@ export function Timeline() {
               </div>
             </div>
             
-            <div className="space-y-2">
-              <label className="text-xs text-neutral-400">Transition Method</label>
-              <div className="grid grid-cols-2 gap-2 text-xs text-neutral-300">
-                <button 
-                  onClick={() => setFrameTransition(editingFrameIndex, 'linear')}
-                  onPointerDown={e => e.stopPropagation()}
-                  className={cn("py-2 rounded border transition-colors", (!project.frames[editingFrameIndex].transitionType || project.frames[editingFrameIndex].transitionType === 'linear') ? "bg-blue-600/20 border-blue-500/50 text-blue-400" : "bg-white/5 border-transparent hover:bg-white/10")}
-                >Linear (직선)</button>
-                <button 
-                  onClick={() => setFrameTransition(editingFrameIndex, 'curve')}
-                  onPointerDown={e => e.stopPropagation()}
-                  className={cn("py-2 rounded border transition-colors", project.frames[editingFrameIndex].transitionType === 'curve' ? "bg-blue-600/20 border-blue-500/50 text-blue-400" : "bg-white/5 border-transparent hover:bg-white/10")}
-                >Curve (곡선)</button>
-                <button 
-                  onClick={() => setFrameTransition(editingFrameIndex, 'jump')}
-                  onPointerDown={e => e.stopPropagation()}
-                  className={cn("py-2 rounded border transition-colors", project.frames[editingFrameIndex].transitionType === 'jump' ? "bg-blue-600/20 border-blue-500/50 text-blue-400" : "bg-white/5 border-transparent hover:bg-white/10")}
-                >Jump (점프)</button>
-                <button 
-                  onClick={() => setFrameTransition(editingFrameIndex, 'rotate')}
-                  onPointerDown={e => e.stopPropagation()}
-                  className={cn("py-2 rounded border transition-colors", project.frames[editingFrameIndex].transitionType === 'rotate' ? "bg-blue-600/20 border-blue-500/50 text-blue-400" : "bg-white/5 border-transparent hover:bg-white/10")}
-                >Rotate (회전)</button>
-              </div>
-            </div>
-
             {/* 무대 이동 버튼 */}
             <div className="space-y-2 pt-2 border-t border-white/10">
               <label className="text-xs text-neutral-400">무대 이동</label>
