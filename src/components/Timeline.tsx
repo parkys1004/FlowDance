@@ -542,7 +542,7 @@ export function Timeline() {
                     ? "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] scale-125"
                     : "bg-neutral-300 hover:bg-neutral-100 hover:scale-110"
                 )}
-                style={{ top: '4px' }}
+                style={{ top: '-10px' }}
               />
             </div>
           );
