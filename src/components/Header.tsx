@@ -1,13 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { Video, ChevronLeft, X } from 'lucide-react';
+import { Video, ChevronLeft, X, BookOpen } from 'lucide-react';
 import { useVideoExport } from '../hooks/useVideoExport';
 import { ExportModal } from './ExportModal';
+import { ManualModal } from './ManualModal';
 
 export function Header() {
   const { project, stageConfig, setStageConfig } = useStore();
   const { startExport, isRecording, progress, cancelExport } = useVideoExport();
-  const [showModal, setShowModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showManual,      setShowManual]      = useState(false);
+
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowExportModal(false);
+        setShowManual(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   if (!project) return null;
 
@@ -42,6 +56,15 @@ export function Header() {
             <span className="inline sm:hidden">Mirror</span>
           </button>
 
+          {/* 매뉴얼 버튼 */}
+          <button
+            onClick={() => setShowManual(true)}
+            className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-md transition"
+            title="사용 가이드"
+          >
+            <BookOpen className="w-4 h-4" />
+          </button>
+
           {isRecording ? (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/20 border border-red-600/30 rounded-md">
@@ -66,7 +89,7 @@ export function Header() {
             </div>
           ) : (
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => setShowExportModal(true)}
               className="px-2 md:px-3 py-1.5 text-[10px] sm:text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition font-medium flex items-center gap-1.5 md:gap-2 whitespace-nowrap"
             >
               <Video className="w-3.5 h-3.5 shrink-0" />
@@ -77,11 +100,15 @@ export function Header() {
         </div>
       </header>
 
-      {showModal && (
+      {showExportModal && (
         <ExportModal
           onExport={(format, ratio) => startExport({ format, ratio })}
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowExportModal(false)}
         />
+      )}
+
+      {showManual && (
+        <ManualModal onClose={() => setShowManual(false)} />
       )}
     </>
   );
