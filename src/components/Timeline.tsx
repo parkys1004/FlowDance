@@ -503,43 +503,76 @@ export function Timeline() {
           className="absolute inset-x-2 pointer-events-none"
         />
 
-        {/* Frames Overlay */}
-        {project.frames.map((frame, index) => {
-          const isActive = currentFrameIndex === index;
-          const leftPercent = ((entryOffset + frame.timestamp) / effectiveDuration) * 100;
+        {/* Frames Overlay — 겹침 방지 레인 계산 */}
+        {(() => {
+          const LANE_GAP_PX = 16;  // 같은 레인으로 판단하는 최소 수평 거리
+          const LANE_STEP_PX = 13; // 레인마다 점을 올리는 높이
+          const MAX_LANES    = 4;
 
-          return (
-            <div 
-              key={frame.id}
-              className={cn(
-                "absolute top-0 bottom-0 flex flex-col justify-start items-center transform -translate-x-1/2 transition-colors cursor-pointer",
-                isActive ? "z-30" : "z-10 hover:z-30"
-              )}
-              style={{ left: `calc(${Math.min(100, Math.max(0, leftPercent))}% + 0.5rem)` }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentFrame(index);
-                const absTime = entryOffset + frame.timestamp;
-                setCurrentTime(absTime);
-                if (audioRef.current) {
-                  audioRef.current.currentTime = Math.max(0, frame.timestamp);
-                }
-              }}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                setEditingFrameIndex(index);
-              }}
-            >
-              {/* Marker Dot */}
-              <div className={cn(
-                "w-2.5 h-2.5 rounded-full mt-1.5 border border-black transition-all relative z-40",
-                isActive 
-                  ? "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] scale-125" 
-                  : "bg-neutral-300 hover:bg-neutral-100 hover:scale-110"
-              )} />
-            </div>
-          );
-        })}
+          // 각 프레임의 픽셀 x 위치 계산 후 정렬
+          const info = project.frames.map((frame, index) => {
+            const leftPct = ((entryOffset + frame.timestamp) / effectiveDuration) * 100;
+            const leftPx  = (Math.min(100, Math.max(0, leftPct)) / 100) * (trackWidth || 800);
+            return { frame, index, leftPct, leftPx };
+          }).sort((a, b) => a.leftPx - b.leftPx);
+
+          // 그리디 레인 배정
+          const lanePxEnd: number[] = [];
+          const laneOf = new Map<string, number>();
+          info.forEach(({ frame, leftPx }) => {
+            let lane = 0;
+            while (lanePxEnd[lane] !== undefined && leftPx - lanePxEnd[lane] < LANE_GAP_PX) lane++;
+            lane = Math.min(lane, MAX_LANES - 1);
+            laneOf.set(frame.id, lane);
+            lanePxEnd[lane] = leftPx;
+          });
+
+          return project.frames.map((frame, index) => {
+            const isActive  = currentFrameIndex === index;
+            const leftPct   = ((entryOffset + frame.timestamp) / effectiveDuration) * 100;
+            const lane      = laneOf.get(frame.id) ?? 0;
+            const dotTopPx  = 4 - lane * LANE_STEP_PX; // 레인 높을수록 위로
+
+            return (
+              <div
+                key={frame.id}
+                className={cn(
+                  "absolute top-0 bottom-0 w-5 -translate-x-1/2 cursor-pointer",
+                  isActive ? "z-30" : "z-10 hover:z-30"
+                )}
+                style={{ left: `calc(${Math.min(100, Math.max(0, leftPct))}% + 0.5rem)` }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentFrame(index);
+                  const absTime = entryOffset + frame.timestamp;
+                  setCurrentTime(absTime);
+                  if (audioRef.current) audioRef.current.currentTime = Math.max(0, frame.timestamp);
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setEditingFrameIndex(index);
+                }}
+              >
+                {/* 가이드 라인 */}
+                <div className={cn(
+                  "absolute left-1/2 -translate-x-1/2 w-px top-0 bottom-0",
+                  isActive ? "bg-blue-400/50" : "bg-neutral-500/25"
+                )} />
+
+                {/* 마커 점 */}
+                <div
+                  className={cn(
+                    "absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full border border-black/60 transition-transform z-40",
+                    isActive
+                      ? "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] scale-125"
+                      : "bg-neutral-300 hover:bg-neutral-100 hover:scale-110"
+                  )}
+                  style={{ top: `${dotTopPx}px` }}
+                />
+              </div>
+            );
+          });
+        })()}
 
         {/* Playhead Line */}
         <div 
