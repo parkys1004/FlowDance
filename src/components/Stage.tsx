@@ -4,7 +4,7 @@ import { motion, PanInfo } from 'motion/react';
 import { useStore } from '../store';
 import { cn } from '../lib/utils';
 import { Point } from '../types';
-import { LogIn, LogOut } from 'lucide-react';
+import { LogIn, LogOut, RotateCcw, RotateCw } from 'lucide-react';
 
 export function Stage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -17,6 +17,7 @@ export function Stage() {
   const grabOffsetRef = useRef<Record<string, { x: number; y: number }>>({});
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
+  const [turnDeg, setTurnDeg] = useState(90); // 선택된 턴 각도
 
   // Handle stage resizing
   useEffect(() => {
@@ -494,6 +495,70 @@ export function Stage() {
                       {angle}°
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* 턴 회전 */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-neutral-400">턴 (회전)</label>
+                  <span className="text-[10px] text-neutral-500 font-mono">
+                    {turnDeg >= 360 ? `${turnDeg / 360}바퀴` : `${turnDeg}°`}
+                  </span>
+                </div>
+
+                {/* 턴 갯수 선택 */}
+                <div className="grid grid-cols-6 gap-1">
+                  {[
+                    { label: '¼', deg: 90 },
+                    { label: '½', deg: 180 },
+                    { label: '¾', deg: 270 },
+                    { label: '1',  deg: 360 },
+                    { label: '2',  deg: 720 },
+                    { label: '3',  deg: 1080 },
+                  ].map(({ label, deg }) => (
+                    <button
+                      key={deg}
+                      onClick={() => setTurnDeg(deg)}
+                      onPointerDown={e => e.stopPropagation()}
+                      className={cn(
+                        "py-1 rounded text-[10px] font-bold transition-colors",
+                        turnDeg === deg
+                          ? "bg-blue-600 text-white"
+                          : "bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-neutral-300"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 좌/우 회전 버튼 */}
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <button
+                    onClick={() => {
+                      const pos = project.frames[currentFrameIndex]?.positions[editingMemberId] || { x: 50, y: 50, rotation: 0 };
+                      const newRot = (((pos.rotation || 0) - turnDeg) % 360 + 360) % 360;
+                      useStore.getState().updateMemberPosition(editingMemberId, { ...pos, rotation: newRot });
+                    }}
+                    onPointerDown={e => e.stopPropagation()}
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white text-xs font-medium transition-colors border border-white/5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    왼쪽
+                  </button>
+                  <button
+                    onClick={() => {
+                      const pos = project.frames[currentFrameIndex]?.positions[editingMemberId] || { x: 50, y: 50, rotation: 0 };
+                      const newRot = ((pos.rotation || 0) + turnDeg) % 360;
+                      useStore.getState().updateMemberPosition(editingMemberId, { ...pos, rotation: newRot });
+                    }}
+                    onPointerDown={e => e.stopPropagation()}
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white text-xs font-medium transition-colors border border-white/5"
+                  >
+                    <RotateCw className="w-3.5 h-3.5" />
+                    오른쪽
+                  </button>
                 </div>
               </div>
             </div>
