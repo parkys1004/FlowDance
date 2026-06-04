@@ -187,9 +187,70 @@ export function Stage() {
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[10px] font-mono text-neutral-500 font-medium tracking-[0.2em] pointer-events-none z-0">
+      {/* FRONT 레이블 — 관중석 위에 표시 */}
+      <div className="absolute left-1/2 -translate-x-1/2 text-[10px] font-mono text-neutral-500 font-medium tracking-[0.2em] pointer-events-none z-[3]"
+        style={{ bottom: '21%' }}>
         FRONT {stageConfig.mirrorMode ? '(MIRROR)' : ''}
       </div>
+
+      {/* 관중 레이어 */}
+      {dimensions.width > 0 && (() => {
+        const W = dimensions.width;
+        const H = dimensions.height;
+        const rows = [
+          { yF: 0.875, count: 24, rF: 0.025, opacity: 0.30 },
+          { yF: 0.920, count: 19, rF: 0.032, opacity: 0.45 },
+          { yF: 0.965, count: 14, rF: 0.040, opacity: 0.62 },
+        ];
+        const hash = (a: number, b: number) =>
+          (((Math.sin(a * 127.1 + b * 311.7) * 43758.5453) % 1) + 1) % 1;
+
+        return (
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-[2]" overflow="visible">
+            <defs>
+              {/* 좌우 페이드 마스크 */}
+              <linearGradient id="audFadeL" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0%"   stopColor="#0A0A0A" stopOpacity="1" />
+                <stop offset="100%" stopColor="#0A0A0A" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="audFadeR" x1="1" x2="0" y1="0" y2="0">
+                <stop offset="0%"   stopColor="#0A0A0A" stopOpacity="1" />
+                <stop offset="100%" stopColor="#0A0A0A" stopOpacity="0" />
+              </linearGradient>
+              {/* 하단 그림자 */}
+              <linearGradient id="audShadow" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%"   stopColor="rgba(0,0,0,0)"    />
+                <stop offset="100%" stopColor="rgba(0,0,0,0.45)" />
+              </linearGradient>
+            </defs>
+
+            {/* 스테이지 바닥 그림자 */}
+            <rect x="0" y={H * 0.78} width={W} height={H * 0.22} fill="url(#audShadow)" />
+
+            {/* 관중 실루엣 */}
+            {rows.flatMap((row, ri) =>
+              Array.from({ length: row.count }, (_, i) => {
+                const x   = ((i + 0.5) / row.count) * W;
+                const r   = H * row.rF;
+                const yJ  = (hash(i, ri) - 0.5) * r * 0.6;
+                const y   = H * row.yF + yJ;
+                const gv  = Math.round(18 + hash(i + 50, ri) * 22);
+                const fill = `rgb(${gv},${gv},${gv})`;
+                return (
+                  <g key={`aud-${ri}-${i}`} opacity={row.opacity}>
+                    <ellipse cx={x} cy={y}           rx={r * 0.82} ry={r}       fill={fill} />
+                    <ellipse cx={x} cy={y + r * 1.1} rx={r * 1.5}  ry={r * 0.52} fill={fill} />
+                  </g>
+                );
+              })
+            )}
+
+            {/* 좌우 페이드 */}
+            <rect x="0"        y={H * 0.82} width={W * 0.10} height={H * 0.18} fill="url(#audFadeL)" />
+            <rect x={W * 0.90} y={H * 0.82} width={W * 0.10} height={H * 0.18} fill="url(#audFadeR)" />
+          </svg>
+        );
+      })()}
 
       {/* Dancers */}
       {project.members.map((member) => {

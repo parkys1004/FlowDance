@@ -59,6 +59,62 @@ function interpolatePos(memberId: string, time: number, entryOffset: number, fra
   };
 }
 
+function hash(a: number, b: number) {
+  return (((Math.sin(a * 127.1 + b * 311.7) * 43758.5453) % 1) + 1) % 1;
+}
+
+function drawAudience(ctx: CanvasRenderingContext2D, W: number, H: number) {
+  // 스테이지 바닥 그림자
+  const shadow = ctx.createLinearGradient(0, H * 0.78, 0, H);
+  shadow.addColorStop(0, 'rgba(0,0,0,0)');
+  shadow.addColorStop(1, 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = shadow;
+  ctx.fillRect(0, H * 0.78, W, H * 0.22);
+
+  const rows = [
+    { yF: 0.875, count: 24, rF: 0.025, opacity: 0.30 },
+    { yF: 0.920, count: 19, rF: 0.032, opacity: 0.45 },
+    { yF: 0.965, count: 14, rF: 0.040, opacity: 0.62 },
+  ];
+
+  rows.forEach(({ yF, count, rF, opacity }, ri) => {
+    const r = H * rF;
+    for (let i = 0; i < count; i++) {
+      const x   = ((i + 0.5) / count) * W;
+      const yJ  = (hash(i, ri) - 0.5) * r * 0.6;
+      const y   = H * yF + yJ;
+      const gv  = Math.round(18 + hash(i + 50, ri) * 22);
+      ctx.fillStyle = `rgba(${gv},${gv},${gv},${opacity})`;
+
+      // 머리
+      ctx.beginPath();
+      ctx.ellipse(x, y, r * 0.82, r, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // 어깨
+      ctx.beginPath();
+      ctx.ellipse(x, y + r * 1.1, r * 1.5, r * 0.52, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  // 좌우 페이드
+  const fadeW = W * 0.10;
+  const fadeY = H * 0.82;
+  const fadeH = H * 0.18;
+
+  const fadeL = ctx.createLinearGradient(0, 0, fadeW, 0);
+  fadeL.addColorStop(0, 'rgba(10,10,10,0.85)');
+  fadeL.addColorStop(1, 'rgba(10,10,10,0)');
+  ctx.fillStyle = fadeL;
+  ctx.fillRect(0, fadeY, fadeW, fadeH);
+
+  const fadeR = ctx.createLinearGradient(W, 0, W - fadeW, 0);
+  fadeR.addColorStop(0, 'rgba(10,10,10,0.85)');
+  fadeR.addColorStop(1, 'rgba(10,10,10,0)');
+  ctx.fillStyle = fadeR;
+  ctx.fillRect(W - fadeW, fadeY, fadeW, fadeH);
+}
+
 function drawStage(
   ctx: CanvasRenderingContext2D,
   time: number,
@@ -89,12 +145,16 @@ function drawStage(
   ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2);
   ctx.stroke();
 
+  // 관중 (멤버 아래 레이어)
+  drawAudience(ctx, W, H);
+
+  // FRONT 레이블 (관중 위)
   ctx.save();
   ctx.fillStyle = 'rgba(113,113,122,0.5)';
   ctx.font = 'bold 13px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(`FRONT${mirror ? ' (MIRROR)' : ''}`, W / 2, H - 10);
+  ctx.fillText(`FRONT${mirror ? ' (MIRROR)' : ''}`, W / 2, H * 0.79);
   ctx.restore();
 
   project.members.forEach((member) => {
