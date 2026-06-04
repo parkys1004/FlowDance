@@ -38,6 +38,14 @@ export interface Project {
   stageMarkers?: StageMarker[];
 }
 
+export interface CustomFormation {
+  id: string;
+  name: string;
+  positions: Array<{ x: number; y: number }>;
+  memberCount: number;
+  createdAt: number;
+}
+
 export interface StageConfig {
   width: number;
   height: number;

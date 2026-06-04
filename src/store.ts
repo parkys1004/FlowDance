@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Project, Member, Frame, StageConfig, Point, StageMarker, StageMarkerType } from './types';
+import { Project, Member, Frame, StageConfig, Point, StageMarker, StageMarkerType, CustomFormation } from './types';
 import { generateId } from './lib/utils';
 
 interface AppState {
@@ -37,6 +37,10 @@ interface AppState {
   loadProject: (project: Project) => void;
 
   renameProject: (name: string) => void;
+  customFormations: CustomFormation[];
+  saveCustomFormation: (name: string) => void;
+  deleteCustomFormation: (id: string) => void;
+
   clearAllMembers: () => void;
   applyFormation: (positions: Record<string, Point>) => void;
 
@@ -61,6 +65,7 @@ export const useStore = create<AppState>()(persist((set, get) => ({
   isPlaying: false,
   currentTime: 0,
   duration: 0,
+  customFormations: [],
 
   initializeProject: (name) => {
     const frameId = generateId();
@@ -355,6 +360,30 @@ export const useStore = create<AppState>()(persist((set, get) => ({
     });
   },
 
+  saveCustomFormation: (name) => {
+    set((state) => {
+      if (!state.project) return state;
+      const frame = state.project.frames[state.currentFrameIndex];
+      if (!frame) return state;
+      const positions = state.project.members.map(m => {
+        const p = frame.positions[m.id] || { x: 50, y: 50 };
+        return { x: p.x, y: p.y };
+      });
+      const cf: CustomFormation = {
+        id: generateId(),
+        name: name.trim() || `커스텀 ${state.customFormations.length + 1}`,
+        positions,
+        memberCount: state.project.members.length,
+        createdAt: Date.now(),
+      };
+      return { customFormations: [...state.customFormations, cf] };
+    });
+  },
+
+  deleteCustomFormation: (id) => {
+    set((state) => ({ customFormations: state.customFormations.filter(f => f.id !== id) }));
+  },
+
   clearAllMembers: () => {
     set((state) => {
       if (!state.project) return state;
@@ -461,5 +490,6 @@ export const useStore = create<AppState>()(persist((set, get) => ({
   partialize: (state) => ({
     project: state.project ? { ...state.project, audioUrl: undefined } : null,
     stageConfig: state.stageConfig,
+    customFormations: state.customFormations,
   }),
 }));

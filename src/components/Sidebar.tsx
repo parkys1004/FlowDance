@@ -2,10 +2,9 @@ import { useState, FormEvent, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { useStore } from '../store';
-import { UserPlus, Trash2, LogIn, LogOut, Pencil, Check, AlertTriangle, ChevronDown } from 'lucide-react';
+import { UserPlus, Trash2, LogIn, LogOut, Pencil, Check, AlertTriangle, LayoutGrid, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { FORMATIONS, Formation } from '../lib/formations';
-import { Point } from '../types';
+import { FormationModal } from './FormationModal';
 
 const COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#84cc16',
@@ -71,7 +70,6 @@ export function Sidebar() {
     removeMember,
     updateMember,
     clearAllMembers,
-    applyFormation,
     addStageMarker,
     removeStageMarker,
     updateStageMarkerSeconds,
@@ -81,7 +79,7 @@ export function Sidebar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-  const [formationsOpen, setFormationsOpen] = useState(false);
+  const [showFormationModal, setShowFormationModal] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -109,20 +107,6 @@ export function Sidebar() {
     }
     setEditingId(null);
     setEditingName('');
-  };
-
-  const applyCurrentFormation = (formation: Formation) => {
-    if (!project || project.members.length === 0) return;
-    const pts = formation.getPositions(project.members.length);
-    const positions: Record<string, Point> = {};
-    project.members.forEach((m, i) => {
-      positions[m.id] = {
-        x: Math.max(2, Math.min(98, pts[i]?.x ?? 50)),
-        y: Math.max(2, Math.min(98, pts[i]?.y ?? 50)),
-        rotation: 0,
-      };
-    });
-    applyFormation(positions);
   };
 
   const askDeleteMember = (id: string, name: string) => {
@@ -250,54 +234,23 @@ export function Sidebar() {
         </form>
       </div>
 
-      {/* 기본 대형 */}
+      {/* 대형 선택 */}
       <div className="pt-4 border-t border-white/5 mt-3">
         <button
-          onClick={() => setFormationsOpen(o => !o)}
-          className="flex items-center justify-between w-full mb-2"
+          onClick={() => setShowFormationModal(true)}
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all group"
         >
-          <h3 className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold">
-            기본 대형
-          </h3>
-          <ChevronDown className={cn(
-            "w-3.5 h-3.5 text-neutral-600 transition-transform",
-            formationsOpen && "rotate-180"
-          )} />
-        </button>
-
-        {formationsOpen && (
-          <div className="grid grid-cols-2 gap-1.5">
-            {FORMATIONS.map((formation) => {
-              const preview = formation.getPositions(5);
-              return (
-                <button
-                  key={formation.id}
-                  onClick={() => applyCurrentFormation(formation)}
-                  disabled={project.members.length === 0}
-                  className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5 hover:bg-blue-500/15 border border-white/5 hover:border-blue-500/30 transition-colors group disabled:opacity-30"
-                >
-                  {/* SVG 미리보기 */}
-                  <svg viewBox="0 0 100 100" className="w-10 h-8 text-neutral-500 group-hover:text-blue-400 transition-colors">
-                    {preview.map((pt, i) => (
-                      <circle
-                        key={i}
-                        cx={pt.x}
-                        cy={pt.y}
-                        r={7}
-                        fill="currentColor"
-                        opacity={0.85}
-                      />
-                    ))}
-                  </svg>
-                  <span className="text-[9px] text-neutral-500 group-hover:text-neutral-300 transition-colors font-medium">
-                    {formation.name}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-2">
+            <LayoutGrid className="w-3.5 h-3.5 text-neutral-400 group-hover:text-blue-400 transition-colors" />
+            <span className="text-xs text-neutral-300 font-semibold group-hover:text-white transition-colors">대형 선택</span>
           </div>
-        )}
+          <ChevronRight className="w-3.5 h-3.5 text-neutral-600 group-hover:text-neutral-400 transition-colors" />
+        </button>
       </div>
+
+      {showFormationModal && (
+        <FormationModal onClose={() => setShowFormationModal(false)} />
+      )}
 
       {/* 무대 입퇴장 */}
       <div className="pt-4 border-t border-white/5 mt-3">
