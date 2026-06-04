@@ -45,18 +45,35 @@ export function Timeline() {
 
   const [peaks, setPeaks] = useState<number[]>([]);
 
-  // 스페이스바 → 재생/정지
+  // 키보드 단축키: 스페이스(재생/정지), ←→(인디케이터 이동)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code !== 'Space') return;
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return; // 입력 중엔 무시
-      e.preventDefault();
-      togglePlay();
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+        return;
+      }
+
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1; // Shift+방향키: 5초, 일반: 1초
+        const dir  = e.code === 'ArrowLeft' ? -1 : 1;
+        const { currentTime: ct, setCurrentTime: setCT } = useStore.getState();
+        const ed   = effectiveDurationRef.current;
+        const eo   = entryOffsetRef.current;
+        const next = Math.max(0, Math.min(ed, ct + dir * step));
+        setCT(next);
+        if (audioRef.current) {
+          audioRef.current.currentTime = Math.max(0, Math.min(next - eo, audioDuration));
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [togglePlay]);
+  }, [togglePlay, audioDuration]);
   const [trackWidth, setTrackWidth] = useState(800);
   const [editingFrameIndex, setEditingFrameIndex] = useState<number | null>(null);
 
