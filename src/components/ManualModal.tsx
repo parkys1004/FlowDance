@@ -232,8 +232,18 @@ export function ManualModal({ onClose }: Props) {
         </div>
 
         {/* 푸터 */}
-        <div className="px-6 py-3.5 border-t border-white/10 shrink-0">
-          <p className="text-xs text-neutral-600 text-center">
+        <div className="px-6 py-3.5 border-t border-white/10 shrink-0 flex items-center justify-between">
+          <a
+            href="https://dancehive.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-white transition-colors"
+          >
+            <span>🐝</span>
+            <span className="font-medium">댄스하이브</span>
+            <span className="text-neutral-700">dancehive.app</span>
+          </a>
+          <p className="text-xs text-neutral-600">
             ESC 또는 바깥 클릭으로 닫기
           </p>
         </div>
