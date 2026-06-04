@@ -275,13 +275,11 @@ export function Stage() {
               e.preventDefault();
               setEditingMemberId(member.id);
             }}
-            initial={false}
-            animate={{
+            style={{
+              position: 'absolute',
               left: `calc(${renderX}% - 1.5rem)`,
               top: `calc(${logicalPos.y}% - 1.5rem)`,
             }}
-            transition={{ duration: 0 }}
-            style={{ position: 'absolute' }}
             className="touch-none w-12 h-12 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing group z-10"
           >
             {/* 선택 링 */}
