@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import {
   X, Users, LayoutGrid, Play, LogIn, LogOut,
-  Video, Keyboard, MousePointer, Music, Copy,
+  Video, Keyboard, MousePointer, Music, Copy, Save,
 } from 'lucide-react';
 
 interface Props { onClose: () => void; }
@@ -29,7 +29,8 @@ const SECTIONS: Section[] = [
     items: [
       { text: '멤버 추가', sub: '좌측 패널 하단 이름 입력 → + 버튼 클릭' },
       { text: '이름 수정', sub: '멤버 위에 마우스를 올리면 연필 아이콘이 나타납니다. 클릭 후 수정 → Enter 확인 / Escape 취소' },
-      { text: '색상 · 회전 편집', sub: '스테이지에서 멤버를 우클릭하면 상세 편집 패널이 열립니다. 색상 변경, 회전 각도 조절, 턴(회전 애니메이션) 설정 가능' },
+      { text: '색상 변경', sub: '좌측 패널 멤버 목록의 색상 원을 클릭하면 컬러 피커가 열립니다. 선택 즉시 스테이지에 반영' },
+      { text: '회전 · 턴 편집', sub: '스테이지에서 멤버를 우클릭하면 상세 편집 패널이 열립니다. 회전 각도 조절, 턴(회전 애니메이션) 설정 가능' },
       { text: '멤버 삭제', sub: '멤버 우측 휴지통 아이콘 클릭. 모든 프레임에서 제거됩니다' },
       { text: '전체 삭제', sub: '패널 상단 오른쪽 "전체 삭제" 버튼' },
     ],
@@ -43,6 +44,7 @@ const SECTIONS: Section[] = [
       { text: '멤버 선택', sub: '멤버 클릭 → 흰색 링 표시, 이름 레이블 고정 표시' },
       { text: '기본 대형 적용', sub: '좌측 패널 "기본 대형" 섹션에서 원형·V자·일렬 등 클릭 → 현재 프레임에 즉시 적용' },
       { text: '미러 모드', sub: '헤더 Mirror Mode 버튼 → 무대 좌우 반전 보기. 관객 시점으로 확인할 때 유용' },
+      { text: '프로젝트 이름 변경', sub: '헤더의 프로젝트 이름을 클릭하면 인라인 편집 입력창이 열립니다. Enter 저장 / Escape 취소' },
     ],
   },
   {
@@ -99,6 +101,17 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    icon: <Save className="w-4 h-4" />,
+    color: 'text-yellow-400 bg-yellow-500/15',
+    title: '프로젝트 저장 & 불러오기',
+    items: [
+      { text: '자동 저장', sub: '작업 내용은 브라우저에 자동으로 저장됩니다. 페이지를 새로고침해도 마지막 작업 상태가 그대로 복원됩니다' },
+      { text: '파일로 저장 (💾)', sub: '헤더 저장 아이콘 클릭 → .flowdance 파일로 내보내기. 다른 기기로 이동하거나 백업할 때 사용' },
+      { text: '파일 불러오기 (📂)', sub: '헤더 폴더 아이콘 클릭 → .flowdance 파일 선택 → 프로젝트 복원. 완료 시 하단에 알림 표시' },
+      { text: '음악 파일 재업로드', sub: '음악은 파일에 포함되지 않습니다. 불러오기 후 타임라인의 "음악 업로드" 버튼으로 다시 업로드해주세요' },
+    ],
+  },
+  {
     icon: <Video className="w-4 h-4" />,
     color: 'text-blue-400 bg-blue-500/15',
     title: '영상 내보내기',
@@ -124,8 +137,8 @@ const SHORTCUTS = [
   { keys: ['→'],              desc: '인디케이터 1초 앞으로' },
   { keys: ['Shift', '←'],    desc: '인디케이터 5초 뒤로' },
   { keys: ['Shift', '→'],    desc: '인디케이터 5초 앞으로' },
-  { keys: ['Enter'],          desc: '멤버 이름 편집 확인' },
-  { keys: ['Escape'],         desc: '멤버 이름 편집 취소' },
+  { keys: ['Enter'],          desc: '이름 편집 확인 (멤버·프로젝트명)' },
+  { keys: ['Escape'],         desc: '이름 편집 취소 (멤버·프로젝트명)' },
 ];
 
 export function ManualModal({ onClose }: Props) {
