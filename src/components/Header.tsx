@@ -76,7 +76,20 @@ export function Header() {
 
   return (
     <>
-      <header className="h-14 md:h-16 flex items-center justify-between px-3 md:px-6 border-b border-neutral-800 bg-[#0f0f0f] shrink-0">
+      <header className="h-14 md:h-16 flex items-center justify-between px-3 md:px-6 border-b border-neutral-800 bg-[#0f0f0f] shrink-0 relative">
+        {/* 중앙 댄스하이브 버튼 */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden sm:block">
+          <a
+            href="https://dancehive.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white hover:bg-white/8 border border-transparent hover:border-white/10 transition-all"
+          >
+            <span className="text-sm">🐝</span>
+            댄스하이브
+          </a>
+        </div>
+
         <div className="flex items-center gap-2 md:gap-4">
           <button className="text-neutral-400 hover:text-white transition-colors" title="Back to Dashboard">
             <ChevronLeft className="w-5 h-5" />
