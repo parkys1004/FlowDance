@@ -77,8 +77,8 @@ export function Header() {
   return (
     <>
       <header className="h-14 md:h-16 flex items-center justify-between px-3 md:px-6 border-b border-neutral-800 bg-[#0f0f0f] shrink-0 relative">
-        {/* 중앙 댄스하이브 버튼 */}
-        <div className="absolute left-1/2 -translate-x-1/2 hidden sm:block">
+        {/* 중앙 버튼 그룹 */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden sm:flex items-center gap-1">
           <a
             href="https://dancehive.app"
             target="_blank"
@@ -88,6 +88,14 @@ export function Header() {
             <span className="text-sm">🐝</span>
             댄스하이브
           </a>
+          <div className="w-px h-4 bg-white/10" />
+          <button
+            onClick={() => setShowManual(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white hover:bg-white/8 border border-transparent hover:border-white/10 transition-all"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            사용자 가이드
+          </button>
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
@@ -167,18 +175,6 @@ export function Header() {
             onChange={handleFileChange}
             className="hidden"
           />
-
-          {/* 구분선 */}
-          <div className="w-px h-5 bg-white/10 mx-0.5" />
-
-          {/* 매뉴얼 */}
-          <button
-            onClick={() => setShowManual(true)}
-            className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-md transition"
-            title="사용 가이드"
-          >
-            <BookOpen className="w-4 h-4" />
-          </button>
 
           {isRecording ? (
             <div className="flex items-center gap-2">
