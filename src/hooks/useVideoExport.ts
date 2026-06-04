@@ -2,8 +2,18 @@ import { useRef, useState, useCallback } from 'react';
 import { useStore } from '../store';
 import { Project, Frame, StageMarker } from '../types';
 
-const W = 1280;
-const H = 720;
+export type ExportFormat = 'mp4' | 'webm';
+export type ExportRatio  = '16:9' | '9:16';
+
+export interface ExportOptions {
+  format: ExportFormat;
+  ratio:  ExportRatio;
+}
+
+const DIMS: Record<ExportRatio, { w: number; h: number }> = {
+  '16:9': { w: 1280, h: 720  },
+  '9:16': { w: 720,  h: 1280 },
+};
 
 function getOffsets(markers?: StageMarker[]) {
   const entry = markers?.filter(m => m.type === 'entry').reduce((max, m) => Math.max(max, m.seconds ?? 10), 0) ?? 0;
@@ -49,14 +59,19 @@ function interpolatePos(memberId: string, time: number, entryOffset: number, fra
   };
 }
 
-function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project, mirror: boolean) {
+function drawStage(
+  ctx: CanvasRenderingContext2D,
+  time: number,
+  project: Project,
+  mirror: boolean,
+  W: number,
+  H: number,
+) {
   const { entry } = getOffsets(project.stageMarkers);
 
-  // 배경
   ctx.fillStyle = '#0A0A0A';
   ctx.fillRect(0, 0, W, H);
 
-  // 점 격자
   ctx.fillStyle = '#262626';
   for (let x = 40; x < W; x += 40) {
     for (let y = 40; y < H; y += 40) {
@@ -66,7 +81,6 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
     }
   }
 
-  // 중심선
   ctx.strokeStyle = 'rgba(255,255,255,0.05)';
   ctx.lineWidth = 1;
   ctx.setLineDash([]);
@@ -75,7 +89,6 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
   ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2);
   ctx.stroke();
 
-  // FRONT 레이블
   ctx.save();
   ctx.fillStyle = 'rgba(113,113,122,0.5)';
   ctx.font = 'bold 13px monospace';
@@ -84,7 +97,6 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
   ctx.fillText(`FRONT${mirror ? ' (MIRROR)' : ''}`, W / 2, H - 10);
   ctx.restore();
 
-  // 멤버 렌더링
   project.members.forEach((member) => {
     const pos = interpolatePos(member.id, time, entry, project.frames);
     let rx = pos.x;
@@ -98,7 +110,6 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
     ctx.translate(cx, cy);
     ctx.rotate((pos.rotation * Math.PI) / 180);
 
-    // 원
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fillStyle = member.color;
@@ -107,7 +118,6 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 방향 흰 삼각형 (아래)
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.moveTo(-6, r + 1);
@@ -116,7 +126,6 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
     ctx.closePath();
     ctx.fill();
 
-    // 방향 색 삼각형 (위에 겹침)
     ctx.fillStyle = member.color;
     ctx.beginPath();
     ctx.moveTo(-4, r + 3);
@@ -127,7 +136,6 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
 
     ctx.restore();
 
-    // 이니셜 (회전 없이 항상 정방향)
     ctx.save();
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 12px sans-serif';
@@ -136,7 +144,6 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
     ctx.fillText(member.name[0].toUpperCase(), cx, cy);
     ctx.restore();
 
-    // 이름 레이블
     ctx.save();
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
@@ -158,16 +165,35 @@ function drawStage(ctx: CanvasRenderingContext2D, time: number, project: Project
   });
 }
 
+function resolveMime(format: ExportFormat): string {
+  if (format === 'mp4') {
+    const candidates = [
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+    ];
+    for (const c of candidates) {
+      if (MediaRecorder.isTypeSupported(c)) return c;
+    }
+  }
+  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) return 'video/webm;codecs=vp9,opus';
+  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) return 'video/webm;codecs=vp8,opus';
+  return 'video/webm';
+}
+
 export function useVideoExport() {
   const { project, stageConfig, duration } = useStore();
   const [isRecording, setIsRecording] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const rafRef = useRef<number | null>(null);
+  const [progress, setProgress]       = useState(0);
+  const rafRef      = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const cancelledRef = useRef(false);
 
-  const startExport = useCallback(async () => {
+  const startExport = useCallback(async (options: ExportOptions) => {
     if (!project || isRecording) return;
+
+    const { format, ratio } = options;
+    const { w: W, h: H } = DIMS[ratio];
 
     const { entry, exit } = getOffsets(project.stageMarkers);
     const audioDur = duration || 30;
@@ -177,13 +203,11 @@ export function useVideoExport() {
     setProgress(0);
     cancelledRef.current = false;
 
-    // 캔버스 생성
     const canvas = document.createElement('canvas');
-    canvas.width = W;
+    canvas.width  = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d')!;
 
-    // 오디오 스트림 설정
     let audioCtx: AudioContext | null = null;
     let audioStreamTracks: MediaStreamTrack[] = [];
 
@@ -193,10 +217,9 @@ export function useVideoExport() {
         const res = await fetch(project.audioUrl);
         const buf = await audioCtx.decodeAudioData(await res.arrayBuffer());
         const dest = audioCtx.createMediaStreamDestination();
-        const src = audioCtx.createBufferSource();
+        const src  = audioCtx.createBufferSource();
         src.buffer = buf;
         src.connect(dest);
-        // entry 오프셋 이후 오디오 시작
         src.start(audioCtx.currentTime + entry);
         audioStreamTracks = dest.stream.getAudioTracks();
       } catch (e) {
@@ -204,16 +227,12 @@ export function useVideoExport() {
       }
     }
 
-    // 비디오+오디오 스트림 합성
+    const mime = resolveMime(format);
+    const ext  = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+
     const videoStream = canvas.captureStream(30);
-    const combined = new MediaStream([...videoStream.getTracks(), ...audioStreamTracks]);
-
-    const mime =
-      MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' :
-      MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' :
-      'video/webm';
-
-    const recorder = new MediaRecorder(combined, { mimeType: mime });
+    const combined    = new MediaStream([...videoStream.getTracks(), ...audioStreamTracks]);
+    const recorder    = new MediaRecorder(combined, { mimeType: mime });
     recorderRef.current = recorder;
     const chunks: Blob[] = [];
 
@@ -230,10 +249,10 @@ export function useVideoExport() {
       }
 
       const blob = new Blob(chunks, { type: mime });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${project.name || 'formation'}.webm`;
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `${project.name || 'formation'}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -244,7 +263,6 @@ export function useVideoExport() {
 
     recorder.start(200);
 
-    // 렌더 루프 (실시간 재생과 동일한 속도)
     const startWall = performance.now();
     let lastProgressUpdate = 0;
 
@@ -254,7 +272,7 @@ export function useVideoExport() {
       const elapsed = (performance.now() - startWall) / 1000;
       const t = Math.min(elapsed, totalDur);
 
-      drawStage(ctx, t, project, stageConfig.mirrorMode);
+      drawStage(ctx, t, project, stageConfig.mirrorMode, W, H);
 
       const now = performance.now();
       if (now - lastProgressUpdate > 80) {
