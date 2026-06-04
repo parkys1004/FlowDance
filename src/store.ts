@@ -36,6 +36,7 @@ interface AppState {
   setDuration: (duration: number) => void;
   loadProject: (project: Project) => void;
 
+  renameProject: (name: string) => void;
   clearAllMembers: () => void;
   applyFormation: (positions: Record<string, Point>) => void;
 
@@ -344,6 +345,13 @@ export const useStore = create<AppState>()(persist((set, get) => ({
         positions: { ...frame.positions, ...positions },
       };
       return { project: { ...state.project, frames } };
+    });
+  },
+
+  renameProject: (name) => {
+    set((state) => {
+      if (!state.project || !name.trim()) return state;
+      return { project: { ...state.project, name: name.trim() } };
     });
   },
 

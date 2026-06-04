@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useStore } from '../store';
-import { Video, ChevronLeft, X, BookOpen, Save, FolderOpen } from 'lucide-react';
+import { Video, ChevronLeft, X, BookOpen, Save, FolderOpen, Pencil } from 'lucide-react';
 import { useVideoExport } from '../hooks/useVideoExport';
 import { ExportModal } from './ExportModal';
 import { ManualModal } from './ManualModal';
@@ -9,13 +9,29 @@ import { exportProjectFile, importProjectFile } from '../lib/projectIO';
 type ToastType = { msg: string; ok: boolean } | null;
 
 export function Header() {
-  const { project, stageConfig, setStageConfig, loadProject } = useStore();
+  const { project, stageConfig, setStageConfig, loadProject, renameProject } = useStore();
   const { startExport, isRecording, progress, cancelExport } = useVideoExport();
   const [showExportModal, setShowExportModal] = useState(false);
   const [showManual,      setShowManual]      = useState(false);
   const [toast,           setToast]           = useState<ToastType>(null);
+  const [editingName,     setEditingName]     = useState(false);
+  const [nameValue,       setNameValue]       = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toastTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startNameEdit = () => {
+    setNameValue(project?.name ?? '');
+    setEditingName(true);
+    setTimeout(() => nameInputRef.current?.select(), 0);
+  };
+
+  const commitNameEdit = () => {
+    if (nameValue.trim()) renameProject(nameValue.trim());
+    setEditingName(false);
+  };
+
+  const cancelNameEdit = () => setEditingName(false);
 
   const showToast = (msg: string, ok: boolean) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -67,12 +83,34 @@ export function Header() {
           </button>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-600 rounded flex items-center justify-center font-black text-white italic text-xs md:text-base">F</div>
-            <h1 className="text-base md:text-lg font-semibold tracking-tight">
-              <span className="hidden sm:inline">FlowDance</span>
-              <span className="text-neutral-500 font-normal ml-0 sm:ml-2 text-sm sm:text-base">
-                <span className="hidden sm:inline">/ </span>{project.name}
-              </span>
-            </h1>
+            <div className="flex items-center gap-1.5">
+              <span className="hidden sm:inline text-base md:text-lg font-semibold tracking-tight">FlowDance</span>
+              <span className="hidden sm:inline text-neutral-600">/</span>
+
+              {editingName ? (
+                <input
+                  ref={nameInputRef}
+                  value={nameValue}
+                  onChange={e => setNameValue(e.target.value)}
+                  onBlur={commitNameEdit}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitNameEdit(); }
+                    if (e.key === 'Escape') cancelNameEdit();
+                  }}
+                  className="bg-white/10 border border-blue-500/60 rounded-md px-2 py-0.5 text-sm text-neutral-100 font-medium outline-none w-36 md:w-48"
+                  maxLength={40}
+                />
+              ) : (
+                <button
+                  onClick={startNameEdit}
+                  title="클릭하여 이름 변경"
+                  className="group flex items-center gap-1 text-sm sm:text-base text-neutral-400 font-normal hover:text-neutral-100 transition-colors rounded px-1 -ml-1"
+                >
+                  <span>{project.name}</span>
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
