@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useStore } from '../store';
-import { Video, ChevronLeft, X, BookOpen, Save, FolderOpen, Pencil, Sun, Moon } from 'lucide-react';
+import { Video, ChevronLeft, X, BookOpen, Save, FolderOpen, Pencil, Sun, Moon, LogOut } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { useVideoExport } from '../hooks/useVideoExport';
 import { ExportModal } from './ExportModal';
 import { ManualModal } from './ManualModal';
 import { exportProjectFile, importProjectFile } from '../lib/projectIO';
+import { supabase } from '../lib/supabase';
 
 type ToastType = { msg: string; ok: boolean } | null;
 
@@ -18,6 +19,21 @@ export function Header() {
   const [toast,           setToast]           = useState<ToastType>(null);
   const [editingName,     setEditingName]     = useState(false);
   const [nameValue,       setNameValue]       = useState('');
+  const [userEmail,       setUserEmail]       = useState('');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email ?? '');
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      setUserEmail(s?.user?.email ?? '');
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
   const nameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toastTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -221,6 +237,25 @@ export function Header() {
               <span className="inline sm:hidden">Export</span>
             </button>
           )}
+
+          {/* 구분선 */}
+          <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+          {/* 사용자 이메일 + 로그아웃 */}
+          <div className="flex items-center gap-1.5">
+            {userEmail && (
+              <span className="hidden md:block text-[10px] text-neutral-500 max-w-[120px] truncate" title={userEmail}>
+                {userEmail}
+              </span>
+            )}
+            <button
+              onClick={handleLogout}
+              className="p-1.5 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition"
+              title="로그아웃"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 
