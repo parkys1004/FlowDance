@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import type { ReactNode } from 'react';
 import {
   X, Users, LayoutGrid, Play, LogIn, LogOut,
   Video, Keyboard, MousePointer, Music, Copy,
@@ -8,13 +9,13 @@ interface Props { onClose: () => void; }
 
 interface Item  { text: string; sub?: string }
 interface Section {
-  icon: React.ReactNode;
+  icon: ReactNode;
   color: string;
   title: string;
   items: Item[];
 }
 
-const KBD = ({ children }: { children: React.ReactNode }) => (
+const KBD = ({ children }: { children: ReactNode }) => (
   <kbd className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/10 border border-white/15 text-[10px] font-mono text-neutral-300 leading-none">
     {children}
   </kbd>

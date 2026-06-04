@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { Project, Member, Frame, StageConfig, Point, StageMarker, StageMarkerType } from './types';
 import { generateId } from './lib/utils';
 
@@ -33,6 +34,7 @@ interface AppState {
   setAudio: (url: string, name: string) => void;
   setCurrentTime: (time: number | ((prev: number) => number)) => void;
   setDuration: (duration: number) => void;
+  loadProject: (project: Project) => void;
 
   clearAllMembers: () => void;
   applyFormation: (positions: Record<string, Point>) => void;
@@ -51,11 +53,13 @@ const DEFAULT_STAGE: StageConfig = {
   mirrorMode: false,
 };
 
-export const useStore = create<AppState>((set, get) => ({
+export const useStore = create<AppState>()(persist((set, get) => ({
   project: null,
   currentFrameIndex: 0,
   stageConfig: DEFAULT_STAGE,
   isPlaying: false,
+  currentTime: 0,
+  duration: 0,
 
   initializeProject: (name) => {
     const frameId = generateId();
@@ -323,7 +327,10 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setDuration: (duration) => {
-    set({ duration });
+    set((state) => ({
+      duration,
+      project: state.project ? { ...state.project, audioDuration: duration } : null,
+    }));
   },
 
   applyFormation: (positions) => {
@@ -431,4 +438,20 @@ export const useStore = create<AppState>((set, get) => ({
       };
     });
   },
+
+  loadProject: (project) => {
+    set({
+      project: { ...project, audioUrl: undefined },
+      currentFrameIndex: 0,
+      currentTime: 0,
+      isPlaying: false,
+      duration: project.audioDuration || 0,
+    });
+  },
+}), {
+  name: 'flowdance-storage',
+  partialize: (state) => ({
+    project: state.project ? { ...state.project, audioUrl: undefined } : null,
+    stageConfig: state.stageConfig,
+  }),
 }));

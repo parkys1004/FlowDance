@@ -1,15 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useStore } from '../store';
-import { Video, ChevronLeft, X, BookOpen } from 'lucide-react';
+import { Video, ChevronLeft, X, BookOpen, Save, FolderOpen } from 'lucide-react';
 import { useVideoExport } from '../hooks/useVideoExport';
 import { ExportModal } from './ExportModal';
 import { ManualModal } from './ManualModal';
+import { exportProjectFile, importProjectFile } from '../lib/projectIO';
+
+type ToastType = { msg: string; ok: boolean } | null;
 
 export function Header() {
-  const { project, stageConfig, setStageConfig } = useStore();
+  const { project, stageConfig, setStageConfig, loadProject } = useStore();
   const { startExport, isRecording, progress, cancelExport } = useVideoExport();
   const [showExportModal, setShowExportModal] = useState(false);
   const [showManual,      setShowManual]      = useState(false);
+  const [toast,           setToast]           = useState<ToastType>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const toastTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string, ok: boolean) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ msg, ok });
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
+  };
 
   // ESC 키로 모달 닫기
   useEffect(() => {
@@ -22,6 +34,27 @@ export function Header() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  const handleSave = () => {
+    if (!project) return;
+    exportProjectFile(project);
+    showToast('파일로 저장됨', true);
+  };
+
+  const handleLoadClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const loaded = await importProjectFile(file);
+      loadProject(loaded);
+      showToast(`"${loaded.name}" 불러옴`, true);
+    } catch (err: any) {
+      showToast(err?.message || '불러오기 실패', false);
+    }
+  };
 
   if (!project) return null;
 
@@ -43,7 +76,7 @@ export function Header() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
           <button
             onClick={() => setStageConfig({ mirrorMode: !stageConfig.mirrorMode })}
             className={`px-2 md:px-3 py-1.5 text-[10px] sm:text-xs rounded-md transition border whitespace-nowrap ${
@@ -56,7 +89,38 @@ export function Header() {
             <span className="inline sm:hidden">Mirror</span>
           </button>
 
-          {/* 매뉴얼 버튼 */}
+          {/* 구분선 */}
+          <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+          {/* 저장 */}
+          <button
+            onClick={handleSave}
+            className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-md transition"
+            title="파일로 저장 (.flowdance)"
+          >
+            <Save className="w-4 h-4" />
+          </button>
+
+          {/* 불러오기 */}
+          <button
+            onClick={handleLoadClick}
+            className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-md transition"
+            title="파일 불러오기 (.flowdance)"
+          >
+            <FolderOpen className="w-4 h-4" />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".flowdance,.json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {/* 구분선 */}
+          <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+          {/* 매뉴얼 */}
           <button
             onClick={() => setShowManual(true)}
             className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-md transition"
@@ -99,6 +163,18 @@ export function Header() {
           )}
         </div>
       </header>
+
+      {/* 토스트 알림 */}
+      {toast && (
+        <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[99999] px-4 py-2.5 rounded-xl text-xs font-medium shadow-2xl border flex items-center gap-2 transition-all ${
+          toast.ok
+            ? 'bg-emerald-950 border-emerald-700/60 text-emerald-300'
+            : 'bg-red-950 border-red-700/60 text-red-300'
+        }`}>
+          <span>{toast.ok ? '✓' : '✗'}</span>
+          {toast.msg}
+        </div>
+      )}
 
       {showExportModal && (
         <ExportModal

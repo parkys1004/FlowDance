@@ -34,6 +34,7 @@ export interface Project {
   frames: Frame[];
   audioUrl?: string;
   audioName?: string;
+  audioDuration?: number;
   stageMarkers?: StageMarker[];
 }
 
