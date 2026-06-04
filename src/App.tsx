@@ -1,46 +1,45 @@
 import { useEffect, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
 import { useStore } from './store';
 import { Editor } from './components/Editor';
 import { AuthGate } from './components/AuthGate';
-import { supabase } from './lib/supabase';
+import { getSavedCode, verifyCode, clearCode } from './lib/accessCode';
 import { useTheme } from './hooks/useTheme';
 
 export default function App() {
   const { project, initializeProject } = useStore();
-  const [session,     setSession]     = useState<Session | null>(null);
+  const [authorized,  setAuthorized]  = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
 
   useTheme();
 
-  // 세션 확인 및 변화 구독
+  // 저장된 코드 검증
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    const saved = getSavedCode();
+    if (!saved) {
+      setAuthLoading(false);
+      return;
+    }
+
+    verifyCode(saved).then(valid => {
+      if (valid) {
+        setAuthorized(true);
+      } else {
+        clearCode(); // 무효화된 코드 제거
+      }
       setAuthLoading(false);
     });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
-  // 프로젝트 초기화 (로그인 후)
+  // 프로젝트 초기화
   useEffect(() => {
-    if (session && !project) {
+    if (authorized && !project) {
       initializeProject('New Choreography');
     }
-  }, [session, project, initializeProject]);
+  }, [authorized, project, initializeProject]);
 
-  // 인증 로딩 중
   if (authLoading) {
     return (
-      <div
-        className="flex items-center justify-center h-screen"
-        style={{ backgroundColor: '#080b14' }}
-      >
+      <div className="flex items-center justify-center h-screen" style={{ backgroundColor: '#080b14' }}>
         <div className="flex flex-col items-center gap-3">
           <img
             src="/icon.png"
@@ -54,16 +53,11 @@ export default function App() {
     );
   }
 
-  // 미인증 → 로그인 화면
-  if (!session) return <AuthGate />;
+  if (!authorized) return <AuthGate />;
 
-  // 프로젝트 초기화 중
   if (!project) {
     return (
-      <div
-        className="flex items-center justify-center h-screen"
-        style={{ backgroundColor: 'var(--bg-base)' }}
-      >
+      <div className="flex items-center justify-center h-screen" style={{ backgroundColor: 'var(--bg-base)' }}>
         <div className="animate-pulse text-zinc-500 text-sm">Loading FlowDance...</div>
       </div>
     );

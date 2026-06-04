@@ -6,7 +6,7 @@ import { useVideoExport } from '../hooks/useVideoExport';
 import { ExportModal } from './ExportModal';
 import { ManualModal } from './ManualModal';
 import { exportProjectFile, importProjectFile } from '../lib/projectIO';
-import { supabase } from '../lib/supabase';
+import { clearCode } from '../lib/accessCode';
 
 type ToastType = { msg: string; ok: boolean } | null;
 
@@ -19,20 +19,9 @@ export function Header() {
   const [toast,           setToast]           = useState<ToastType>(null);
   const [editingName,     setEditingName]     = useState(false);
   const [nameValue,       setNameValue]       = useState('');
-  const [userEmail,       setUserEmail]       = useState('');
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserEmail(session?.user?.email ?? '');
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      setUserEmail(s?.user?.email ?? '');
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleLogout = () => {
+    clearCode();
+    window.location.reload();
   };
   const nameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -241,21 +230,14 @@ export function Header() {
           {/* 구분선 */}
           <div className="w-px h-5 bg-white/10 mx-0.5" />
 
-          {/* 사용자 이메일 + 로그아웃 */}
-          <div className="flex items-center gap-1.5">
-            {userEmail && (
-              <span className="hidden md:block text-[10px] text-neutral-500 max-w-[120px] truncate" title={userEmail}>
-                {userEmail}
-              </span>
-            )}
-            <button
-              onClick={handleLogout}
-              className="p-1.5 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition"
-              title="로그아웃"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
+          {/* 코드 초기화 (로그아웃) */}
+          <button
+            onClick={handleLogout}
+            className="p-1.5 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition"
+            title="코드 초기화 (다른 코드로 변경)"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
