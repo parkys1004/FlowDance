@@ -6,22 +6,45 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+/* ── 테마 변수 ─────────────────────────────────── */
+:root {
+  --bg-base:    #0A0A0A;
+  --bg-panel:   #0f0f0f;
+  --bg-surface: #1A1A1A;
+  --bg-modal:   #141414;
+  --border-ui:  rgba(255,255,255,0.1);
+}
+
+[data-theme="light"] {
+  --bg-base:    #f0f2f5;
+  --bg-panel:   #ffffff;
+  --bg-surface: #ffffff;
+  --bg-modal:   #f8fafc;
+  --border-ui:  rgba(0,0,0,0.09);
+  color-scheme: light;
+}
+
+/* ── 기본 스타일 ────────────────────────────────── */
 @layer base {
   body {
-    @apply antialiased text-neutral-200 bg-[#0A0A0A];
+    @apply antialiased;
+    background-color: var(--bg-base);
+    color: #e4e4e7;
   }
+
+  [data-theme="light"] body { color: #18181b; }
 }
 
+/* ── 유틸리티 ───────────────────────────────────── */
 @layer utilities {
   .scrollbar-hide {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none; /* Chrome, Safari and Opera */
-  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
 }
 
+/* ── 컴포넌트 ───────────────────────────────────── */
 @layer components {
   .glass-card {
     background: rgba(30, 30, 30, 0.6);
@@ -46,4 +69,57 @@
     box-shadow: 0 0 15px rgba(0,0,0,0.5);
     border: 2px solid white;
   }
+}
+
+/* ── 라이트 모드 오버라이드 ─────────────────────── */
+[data-theme="light"] {
+
+  /* 주요 배경 */
+  .glass-card {
+    background: rgba(255,255,255,0.92) !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+
+  /* 텍스트 */
+  .text-neutral-100 { color: #09090b !important; }
+  .text-neutral-200 { color: #18181b !important; }
+  .text-neutral-300 { color: #27272a !important; }
+  .text-neutral-400 { color: #3f3f46 !important; }
+  .text-neutral-500 { color: #52525b !important; }
+  .text-neutral-600 { color: #71717a !important; }
+
+  /* 보더 */
+  .border-neutral-800 { border-color: #e4e4e7 !important; }
+
+  /* 버튼/카드 배경 */
+  .bg-neutral-800   { background-color: #e4e4e7 !important; }
+  .hover\:bg-neutral-700:hover { background-color: #d4d4d8 !important; }
+  .bg-neutral-800\/50 { background-color: rgba(228,228,231,0.6) !important; }
+
+  /* 흰색 반투명 배경 → 검정 반투명으로 */
+  .bg-white\/5  { background-color: rgba(0,0,0,0.04) !important; }
+  .bg-white\/10 { background-color: rgba(0,0,0,0.06) !important; }
+  .hover\:bg-white\/5:hover  { background-color: rgba(0,0,0,0.04) !important; }
+  .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.07) !important; }
+
+  /* 모달 배경 (createPortal로 body에 붙는 모달 포함) */
+  .bg-\[\#141414\]    { background-color: #f8fafc !important; }
+  .bg-\[\#1A1A1A\]   { background-color: #ffffff !important; }
+  .bg-\[\#1A1A1A\]\/90  { background-color: rgba(248,250,252,0.97) !important; }
+  .bg-\[\#1A1A1A\]\/95  { background-color: rgba(255,255,255,0.98) !important; }
+  .bg-black\/50  { background-color: rgba(0,0,0,0.04) !important; }
+
+  /* 보더 반투명 */
+  .border-white\/5  { border-color: rgba(0,0,0,0.07) !important; }
+  .border-white\/10 { border-color: rgba(0,0,0,0.09) !important; }
+  .border-white\/8  { border-color: rgba(0,0,0,0.08) !important; }
+
+  /* 입력 필드 */
+  input:not([type="color"]):not([type="range"]) {
+    background-color: #f4f4f5 !important;
+    color: #18181b !important;
+    border-color: rgba(0,0,0,0.12) !important;
+  }
+  input::placeholder { color: #a1a1aa !important; }
 }

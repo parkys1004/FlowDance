@@ -5,7 +5,7 @@ import { Header } from './Header';
 
 export function Editor() {
   return (
-    <div className="flex flex-col h-[100dvh] overflow-hidden bg-[#0A0A0A] text-neutral-200">
+    <div className="flex flex-col h-[100dvh] overflow-hidden text-neutral-200" style={{ backgroundColor: 'var(--bg-base)' }}>
       <Header />
       
       <main className="flex-1 overflow-y-auto lg:overflow-hidden p-3 md:p-4">

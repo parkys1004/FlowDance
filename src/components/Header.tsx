@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useStore } from '../store';
-import { Video, ChevronLeft, X, BookOpen, Save, FolderOpen, Pencil } from 'lucide-react';
+import { Video, ChevronLeft, X, BookOpen, Save, FolderOpen, Pencil, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../hooks/useTheme';
 import { useVideoExport } from '../hooks/useVideoExport';
 import { ExportModal } from './ExportModal';
 import { ManualModal } from './ManualModal';
@@ -10,6 +11,7 @@ type ToastType = { msg: string; ok: boolean } | null;
 
 export function Header() {
   const { project, stageConfig, setStageConfig, loadProject, renameProject } = useStore();
+  const { theme, toggle: toggleTheme } = useTheme();
   const { startExport, isRecording, progress, cancelExport } = useVideoExport();
   const [showExportModal, setShowExportModal] = useState(false);
   const [showManual,      setShowManual]      = useState(false);
@@ -76,7 +78,7 @@ export function Header() {
 
   return (
     <>
-      <header className="h-14 md:h-16 flex items-center justify-between px-3 md:px-6 border-b border-neutral-800 bg-[#0f0f0f] shrink-0 relative">
+      <header className="h-14 md:h-16 flex items-center justify-between px-3 md:px-6 border-b border-neutral-800 shrink-0 relative" style={{ backgroundColor: 'var(--bg-panel)' }}>
         {/* 중앙 버튼 그룹 */}
         <div className="absolute left-1/2 -translate-x-1/2 hidden sm:flex items-center gap-1">
           <a
@@ -146,6 +148,17 @@ export function Header() {
           >
             <span className="hidden sm:inline">Mirror Mode</span>
             <span className="inline sm:hidden">Mirror</span>
+          </button>
+
+          {/* 다크/라이트 토글 */}
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-md transition"
+            title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          >
+            {theme === 'dark'
+              ? <Sun  className="w-4 h-4" />
+              : <Moon className="w-4 h-4" />}
           </button>
 
           {/* 구분선 */}
