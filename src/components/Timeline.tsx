@@ -44,6 +44,19 @@ export function Timeline() {
   useEffect(() => { effectiveDurationRef.current = effectiveDuration; }, [effectiveDuration]);
 
   const [peaks, setPeaks] = useState<number[]>([]);
+
+  // 스페이스바 → 재생/정지
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return; // 입력 중엔 무시
+      e.preventDefault();
+      togglePlay();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [togglePlay]);
   const [trackWidth, setTrackWidth] = useState(800);
   const [editingFrameIndex, setEditingFrameIndex] = useState<number | null>(null);
 
