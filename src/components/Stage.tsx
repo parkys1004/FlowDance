@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, PanInfo } from 'motion/react';
+import { motion, PanInfo, useDragControls } from 'motion/react';
 import { useStore } from '../store';
 import { cn } from '../lib/utils';
 import { Point } from '../types';
@@ -18,6 +18,7 @@ export function Stage() {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
   const [turnDeg, setTurnDeg] = useState(90); // 선택된 턴 각도
+  const memberDragControls = useDragControls();
 
   // Handle stage resizing
   useEffect(() => {
@@ -418,19 +419,21 @@ export function Stage() {
       {/* Member Edit Modal */}
       {editingMemberId && project.members.find(m => m.id === editingMemberId) && createPortal(
         <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
-          <motion.div 
+          <motion.div
             drag
+            dragControls={memberDragControls}
+            dragListener={false}
             dragMomentum={false}
-            className="pointer-events-auto bg-[#1A1A1A]/90 border border-white/10 rounded-xl p-5 shadow-2xl w-72 flex flex-col gap-4 backdrop-blur-md" 
-            onPointerDown={e => e.stopPropagation()}
-            onPointerMove={e => e.stopPropagation()}
+            className="pointer-events-auto bg-[#1A1A1A]/90 border border-white/10 rounded-xl p-5 shadow-2xl w-72 flex flex-col gap-4 backdrop-blur-md"
           >
-            <div className="flex items-center justify-between border-b border-white/10 pb-3 cursor-move">
+            <div
+              className="flex items-center justify-between border-b border-white/10 pb-3 cursor-move select-none"
+              onPointerDown={e => memberDragControls.start(e)}
+            >
               <h3 className="text-neutral-200 font-medium text-sm">Member Properties</h3>
-              <button 
+              <button
                 onClick={() => setEditingMemberId(null)}
                 className="text-neutral-500 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10"
-                onPointerDown={e => e.stopPropagation()}
               >
                 ✕
               </button>
@@ -520,7 +523,6 @@ export function Stage() {
                     <button
                       key={deg}
                       onClick={() => setTurnDeg(deg)}
-                      onPointerDown={e => e.stopPropagation()}
                       className={cn(
                         "py-1 rounded text-[10px] font-bold transition-colors",
                         turnDeg === deg
@@ -537,11 +539,10 @@ export function Stage() {
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   <button
                     onClick={() => {
-                      const pos = project.frames[currentFrameIndex]?.positions[editingMemberId] || { x: 50, y: 50, rotation: 0 };
-                      const newRot = (((pos.rotation || 0) - turnDeg) % 360 + 360) % 360;
-                      useStore.getState().updateMemberPosition(editingMemberId, { ...pos, rotation: newRot });
+                      const s = useStore.getState();
+                      const pos = s.project?.frames[s.currentFrameIndex]?.positions[editingMemberId!] || { x: 50, y: 50, rotation: 0 };
+                      s.updateMemberPosition(editingMemberId!, { ...pos, rotation: (pos.rotation || 0) - turnDeg });
                     }}
-                    onPointerDown={e => e.stopPropagation()}
                     className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white text-xs font-medium transition-colors border border-white/5"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -549,11 +550,10 @@ export function Stage() {
                   </button>
                   <button
                     onClick={() => {
-                      const pos = project.frames[currentFrameIndex]?.positions[editingMemberId] || { x: 50, y: 50, rotation: 0 };
-                      const newRot = ((pos.rotation || 0) + turnDeg) % 360;
-                      useStore.getState().updateMemberPosition(editingMemberId, { ...pos, rotation: newRot });
+                      const s = useStore.getState();
+                      const pos = s.project?.frames[s.currentFrameIndex]?.positions[editingMemberId!] || { x: 50, y: 50, rotation: 0 };
+                      s.updateMemberPosition(editingMemberId!, { ...pos, rotation: (pos.rotation || 0) + turnDeg });
                     }}
-                    onPointerDown={e => e.stopPropagation()}
                     className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white text-xs font-medium transition-colors border border-white/5"
                   >
                     <RotateCw className="w-3.5 h-3.5" />
